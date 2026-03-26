@@ -1,9 +1,0 @@
-From `npm run test:coverage` (Vitest v8).  
-Measured: `lib/*.ts` except `prisma.ts`, plus `app/api/**/route.ts`.
-
-Statements   84.67% (862 / 1018)
-Branches     65.82% (183 / 278)
-Functions    100%   (37 / 37)
-Lines        84.67% (862 / 1018)
-
-Full table: run the command locally. HTML: `./coverage/` (gitignored).

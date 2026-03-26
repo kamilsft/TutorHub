@@ -46,3 +46,6 @@ coverage/
 *.pid
 *.seed
 .cache/
+
+# Docs (course writeups / screenshots / reports)
+docs/
