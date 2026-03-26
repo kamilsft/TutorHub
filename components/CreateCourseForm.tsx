@@ -42,8 +42,8 @@ export default function CreateCourseForm({ tutorId }: { tutorId?: string }) {
         setError(data.error || "Failed to create course");
         return;
       }
-      // Redirect to public courses list for quick verification
-      router.push("/courses");
+      // Keep tutors in course management so drafts remain easy to find/edit.
+      router.push("/dashboard/tutor/courses");
     } catch (e) {
       setError("Failed to create course");
     } finally {
