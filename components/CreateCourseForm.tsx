@@ -12,11 +12,13 @@ export default function CreateCourseForm({ tutorId }: { tutorId?: string }) {
   const [level, setLevel] = useState("");
   const [isPublished, setIsPublished] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
     if (!title.trim() || !subject.trim()) {
       setError("Title and subject are required.");
       return;
@@ -42,8 +44,15 @@ export default function CreateCourseForm({ tutorId }: { tutorId?: string }) {
         setError(data.error || "Failed to create course");
         return;
       }
-      // Keep tutors in course management so drafts remain easy to find/edit.
-      router.push("/dashboard/tutor/courses");
+      const createdTitle = (data?.title || title).toString().trim();
+      setSuccess(`Course "${createdTitle}" created.`);
+      setTitle("");
+      setSubject("");
+      setDescription("");
+      setPrice("");
+      setLevel("");
+      setIsPublished(true);
+      router.refresh();
     } catch (e) {
       setError("Failed to create course");
     } finally {
@@ -54,6 +63,7 @@ export default function CreateCourseForm({ tutorId }: { tutorId?: string }) {
   return (
     <form onSubmit={handleSubmit} className="max-w-xl mx-auto p-4 bg-white rounded-lg shadow-sm space-y-4">
       {error && <div className="text-sm text-red-600">{error}</div>}
+      {success && <div className="text-sm text-emerald-600">{success}</div>}
 
       <div>
         <label className="block text-sm font-medium mb-1">Title</label>

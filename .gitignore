@@ -47,5 +47,13 @@ coverage/
 *.seed
 .cache/
 
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+recommendation-service/.venv/
+recommendation-service/__pycache__/
+
 # Docs (course writeups / screenshots / reports)
 docs/
