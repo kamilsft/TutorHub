@@ -49,11 +49,11 @@ describe("/api/study-plans", () => {
     );
   });
 
-  it("GET returns discover plans (excluding current student)", async () => {
+  it("GET ignores query params and still returns only the caller's plans", async () => {
     prismaMock.studyPlan.findMany.mockResolvedValue([{ id: 2, tasks: [] }] as never);
-    const req = new Request("http://localhost/api/study-plans?scope=discover", {
+    const req = new Request("http://localhost/api/study-plans?scope=discover&studentId=" + OTHER_STUDENT_ID, {
       headers: {
-        authorization: `Bearer ${signToken(STUDENT_ID, "STUDENT")}`,
+        authorization: `Bearer ${signToken(TUTOR_ID, "TUTOR")}`,
       },
     });
 
@@ -61,7 +61,7 @@ describe("/api/study-plans", () => {
     expect(res.status).toBe(200);
     expect(prismaMock.studyPlan.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { studentId: { not: STUDENT_ID } },
+        where: { studentId: TUTOR_ID },
       })
     );
   });
@@ -165,14 +165,10 @@ describe("/api/study-plans", () => {
     );
   });
 
-  it("PUT allows tutor to update any student's plan", async () => {
+  it("PUT returns 403 when a tutor tries to update another user's plan", async () => {
     prismaMock.studyPlan.findUnique.mockResolvedValue({
       id: 8,
       studentId: OTHER_STUDENT_ID,
-    } as never);
-    prismaMock.studyPlan.update.mockResolvedValue({
-      id: 8,
-      tasks: [{ title: "Tutor update", courseId: 2 }],
     } as never);
 
     const req = new Request("http://localhost/api/study-plans", {
@@ -188,6 +184,7 @@ describe("/api/study-plans", () => {
     });
 
     const res = await PUT(req);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(403);
+    expect(prismaMock.studyPlan.update).not.toHaveBeenCalled();
   });
 });

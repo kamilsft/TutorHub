@@ -14,44 +14,13 @@ export async function GET(req: Request) {
     const auth = requireAuthenticatedUser(req);
     if (auth instanceof Response) return auth;
 
-    const url = new URL(req.url);
-    const scope = (url.searchParams.get("scope") || "mine").toLowerCase();
-    const studentIdFilter = url.searchParams.get("studentId");
+    const plans = await prisma.studyPlan.findMany({
+      where: { studentId: auth.sub },
+      include: { tasks: { orderBy: { dueDate: "asc" } } },
+      orderBy: { createdAt: "desc" },
+    });
 
-    if (auth.role === "STUDENT") {
-      if (scope === "discover") {
-        const plans = await prisma.studyPlan.findMany({
-            where: { studentId: { not: auth.sub } },
-            include: {
-              tasks: { orderBy: { dueDate: "asc" } },
-              student: { select: { id: true, fullName: true } },
-            },
-            orderBy: { createdAt: "desc" },
-          });
-        return NextResponse.json(plans);
-      }
-
-      const plans = await prisma.studyPlan.findMany({
-        where: { studentId: auth.sub },
-        include: { tasks: { orderBy: { dueDate: "asc" } } },
-        orderBy: { createdAt: "desc" },
-      });
-      return NextResponse.json(plans);
-    }
-
-    if (auth.role === "TUTOR") {
-      const plans = await prisma.studyPlan.findMany({
-        where: studentIdFilter ? { studentId: studentIdFilter } : undefined,
-        include: {
-          tasks: { orderBy: { dueDate: "asc" } },
-          student: { select: { id: true, fullName: true } },
-        },
-        orderBy: { createdAt: "desc" },
-      });
-      return NextResponse.json(plans);
-    }
-
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json(plans);
   } catch (err) {
     console.error("GET /api/study-plans error:", err);
     return NextResponse.json({ error: "Failed to fetch study plans" }, { status: 500 });
@@ -100,23 +69,12 @@ export async function POST(req: Request) {
   try {
     const auth = requireAuthenticatedUser(req);
     if (auth instanceof Response) return auth;
-    if (auth.role !== "STUDENT" && auth.role !== "TUTOR") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     const body = await req.json().catch(() => ({}));
     const sourcePlanId = Number(body.sourcePlanId || 0);
 
-    const requestedStudentId =
-      typeof body.studentId === "string" ? body.studentId : "";
-    const targetStudentId = auth.role === "STUDENT" ? auth.sub : requestedStudentId;
-
-    if (!targetStudentId) {
-      return NextResponse.json({ error: "studentId is required" }, { status: 400 });
-    }
-
     const studentExists = await prisma.user.findUnique({
-      where: { id: targetStudentId },
+      where: { id: auth.sub },
       select: { id: true },
     });
     if (!studentExists) {
@@ -151,7 +109,7 @@ export async function POST(req: Request) {
 
     const newPlan = await prisma.studyPlan.create({
       data: {
-        studentId: targetStudentId,
+        studentId: auth.sub,
         tasks: {
           create: taskPayload,
         },
@@ -170,9 +128,6 @@ export async function PUT(req: Request) {
   try {
     const auth = requireAuthenticatedUser(req);
     if (auth instanceof Response) return auth;
-    if (auth.role !== "STUDENT" && auth.role !== "TUTOR") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     const body = await req.json().catch(() => ({}));
     const planId = Number(body.planId || 0);
@@ -193,14 +148,12 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Study plan not found" }, { status: 404 });
     }
 
-    if (auth.role === "STUDENT") {
-      const ownership = requireResourceOwner({
-        ownerId: existingPlan.studentId,
-        userId: auth.sub,
-        errorMessage: "You do not own this plan",
-      });
-      if (ownership instanceof Response) return ownership;
-    }
+    const ownership = requireResourceOwner({
+      ownerId: existingPlan.studentId,
+      userId: auth.sub,
+      errorMessage: "You do not own this plan",
+    });
+    if (ownership instanceof Response) return ownership;
 
     const updated = await prisma.studyPlan.update({
       where: { id: planId },

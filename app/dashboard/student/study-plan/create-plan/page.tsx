@@ -18,7 +18,6 @@ export default async function CreateStudyPlanPage({ searchParams }: Props) {
     const payload = verifyToken(token);
     if (!payload || payload.role !== "STUDENT") return <p>Forbidden</p>;
 
-    const studentId = payload.sub;
     const copyFrom = Number(searchParams?.copyFrom || 0);
 
     const enrollments = await prisma.enrollment.findMany({
@@ -97,7 +96,6 @@ export default async function CreateStudyPlanPage({ searchParams }: Props) {
             </p>
           )}
           <StudyPlanForm
-            studentId={studentId}
             initialTasks={copiedTasks}
             availableCourses={availableCourses}
             onSavedPath="/dashboard/student/study-plan/view-plans"

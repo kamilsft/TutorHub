@@ -16,7 +16,6 @@ type Course = {
 };
 
 type StudyPlanFormProps = {
-  studentId: string;
   initialTasks?: Array<{
     title: string;
     courseId: string | number;
@@ -43,7 +42,6 @@ function toDateInputValue(value: string | Date): string {
 }
 
 export default function StudyPlanForm({
-  studentId,
   initialTasks,
   planId,
   availableCourses,
@@ -109,7 +107,7 @@ export default function StudyPlanForm({
     }
 
     loadCourses();
-  }, [availableCourses, studentId]);
+  }, [availableCourses]);
 
   function handleTaskChange(index: number, patch: Partial<Task>) {
     setTasks((prev) =>
@@ -158,7 +156,6 @@ export default function StudyPlanForm({
             })),
           }
         : {
-            studentId,
             tasks: tasks.map((task) => ({
               title: task.title.trim(),
               courseId: task.courseId,

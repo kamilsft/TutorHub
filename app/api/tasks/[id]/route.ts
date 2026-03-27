@@ -6,9 +6,6 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   try {
     const auth = requireAuthenticatedUser(req);
     if (auth instanceof Response) return auth;
-    if (auth.role !== "STUDENT" && auth.role !== "TUTOR") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     const { completed } = await req.json().catch(() => ({}));
     const taskId = Number(params.id);
@@ -27,14 +24,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
-    if (auth.role === "STUDENT") {
-      const ownership = requireResourceOwner({
-        ownerId: task.studyPlan.studentId,
-        userId: auth.sub,
-        errorMessage: "You do not own this task",
-      });
-      if (ownership instanceof Response) return ownership;
-    }
+    const ownership = requireResourceOwner({
+      ownerId: task.studyPlan.studentId,
+      userId: auth.sub,
+      errorMessage: "You do not own this task",
+    });
+    if (ownership instanceof Response) return ownership;
 
     const updatedTask = await prisma.task.update({
       where: { id: taskId },
