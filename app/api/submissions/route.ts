@@ -1,24 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyToken } from "@/lib/jwt";
-
-function getToken(request: Request): string | null {
-  const authHeader = request.headers.get("authorization") || "";
-  if (authHeader.startsWith("Bearer ")) return authHeader.slice(7);
-  const cookie = request.headers.get("cookie") || "";
-  const match = /authToken=([^;]+)/.exec(cookie);
-  if (match) return decodeURIComponent(match[1]);
-  return null;
-}
+import {
+  requireAuthenticatedUser,
+  requireResourceOwner,
+} from "@/lib/api-auth";
 
 // GET /api/submissions?assignmentId=1  or  ?courseId=1
 // tutors see all submissions for their course, students only see their own
 export async function GET(request: Request) {
   try {
-    const token = getToken(request);
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const payload = verifyToken(token);
-    if (!payload) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    const auth = requireAuthenticatedUser(request);
+    if (auth instanceof Response) return auth;
 
     const { searchParams } = new URL(request.url);
     const assignmentId = Number(searchParams.get("assignmentId") || 0);
@@ -34,12 +26,12 @@ export async function GET(request: Request) {
     if (courseId) where.assignment = { courseId };
 
     // students only see their own submissions
-    if (payload.role === "STUDENT") {
-      where.studentId = payload.sub;
+    if (auth.role === "STUDENT") {
+      where.studentId = auth.sub;
     }
 
     // tutors - verify they own the course before returning anything
-    if (payload.role === "TUTOR") {
+    if (auth.role === "TUTOR") {
       // figure out which course this is for
       let targetCourseId = courseId;
       if (!targetCourseId && assignmentId) {
@@ -48,9 +40,12 @@ export async function GET(request: Request) {
       }
       if (targetCourseId) {
         const course = await prisma.course.findUnique({ where: { id: targetCourseId } });
-        if (!course || course.tutorId !== payload.sub) {
-          return NextResponse.json({ error: "You do not own this course" }, { status: 403 });
-        }
+        const ownership = requireResourceOwner({
+          ownerId: course?.tutorId,
+          userId: auth.sub,
+          errorMessage: "You do not own this course",
+        });
+        if (ownership instanceof Response) return ownership;
       }
     }
 
@@ -80,12 +75,10 @@ export async function GET(request: Request) {
 // body: { assignmentId, content }
 export async function POST(request: Request) {
   try {
-    const token = getToken(request);
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const payload = verifyToken(token);
-    if (!payload) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    const auth = requireAuthenticatedUser(request);
+    if (auth instanceof Response) return auth;
 
-    if (payload.role !== "STUDENT") {
+    if (auth.role !== "STUDENT") {
       return NextResponse.json({ error: "Only students can submit assignments" }, { status: 403 });
     }
 
@@ -109,7 +102,7 @@ export async function POST(request: Request) {
     // check student is enrolled in the course
     const enrollment = await prisma.enrollment.findUnique({
       where: {
-        studentId_courseId: { studentId: payload.sub, courseId: assignment.courseId } as any,
+        studentId_courseId: { studentId: auth.sub, courseId: assignment.courseId } as any,
       },
     });
     if (!enrollment || enrollment.status !== "ACTIVE") {
@@ -118,7 +111,7 @@ export async function POST(request: Request) {
 
     // check if they already submitted - if so, update it (resubmit)
     const existing = await prisma.submission.findFirst({
-      where: { assignmentId, studentId: payload.sub },
+      where: { assignmentId, studentId: auth.sub },
     });
 
     let submission;
@@ -139,7 +132,7 @@ export async function POST(request: Request) {
       resubmitted = true;
     } else {
       submission = await prisma.submission.create({
-        data: { assignmentId, studentId: payload.sub, content },
+        data: { assignmentId, studentId: auth.sub, content },
       });
     }
 

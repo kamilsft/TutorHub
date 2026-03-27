@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { getTokenFromRequest, requireAuth } from "@/lib/api-auth";
+import {
+  getTokenFromRequest,
+  requireAuthenticatedUser,
+  requireResourceOwner,
+  requireTutorRole,
+} from "@/lib/api-auth";
 import { signToken } from "@/lib/jwt";
 import {
   FIXTURE_ROLE,
@@ -26,10 +31,10 @@ describe("getTokenFromRequest (FR: API accepts Bearer or cookie)", () => {
   });
 });
 
-describe("requireAuth (FR: protected API returns 401 without valid JWT)", () => {
+describe("requireAuthenticatedUser (FR: protected API returns 401 without valid JWT)", () => {
   it("returns JwtPayload for valid Bearer token", () => {
     const token = signToken(FIXTURE_USER_ID, FIXTURE_ROLE);
-    const result = requireAuth(requestWithBearerToken(token));
+    const result = requireAuthenticatedUser(requestWithBearerToken(token));
     expect(result).not.toBeInstanceOf(Response);
     if (!(result instanceof Response)) {
       expect(result.sub).toBe(FIXTURE_USER_ID);
@@ -38,7 +43,7 @@ describe("requireAuth (FR: protected API returns 401 without valid JWT)", () => 
   });
 
   it("returns 401 Response when token missing", () => {
-    const result = requireAuth(new Request("http://localhost/"));
+    const result = requireAuthenticatedUser(new Request("http://localhost/"));
     expect(result).toBeInstanceOf(Response);
     const res = result as Response;
     expect(res.status).toBe(401);
@@ -46,8 +51,33 @@ describe("requireAuth (FR: protected API returns 401 without valid JWT)", () => 
 
   it("returns 401 Response when token invalid", () => {
     const req = requestWithBearerToken("bad.token.here");
-    const result = requireAuth(req);
+    const result = requireAuthenticatedUser(req);
     expect(result).toBeInstanceOf(Response);
     expect((result as Response).status).toBe(401);
+  });
+});
+
+describe("requireTutorRole", () => {
+  it("returns the user when the role is tutor", () => {
+    const tutor = { sub: FIXTURE_USER_ID, role: "TUTOR" as const };
+    expect(requireTutorRole(tutor)).toEqual(tutor);
+  });
+
+  it("returns 403 Response for non-tutors", () => {
+    const result = requireTutorRole({ sub: FIXTURE_USER_ID, role: "STUDENT" });
+    expect(result).toBeInstanceOf(Response);
+    expect((result as Response).status).toBe(403);
+  });
+});
+
+describe("requireResourceOwner", () => {
+  it("returns true for the owner", () => {
+    expect(requireResourceOwner({ ownerId: FIXTURE_USER_ID, userId: FIXTURE_USER_ID })).toBe(true);
+  });
+
+  it("returns 403 Response when the user does not own the resource", () => {
+    const result = requireResourceOwner({ ownerId: "someone-else", userId: FIXTURE_USER_ID });
+    expect(result).toBeInstanceOf(Response);
+    expect((result as Response).status).toBe(403);
   });
 });

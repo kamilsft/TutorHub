@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuthenticatedUser } from "@/lib/api-auth";
 import {
   getConversation,
   listThreadsForUser,
@@ -13,7 +13,7 @@ import {
  * GET /api/messages?with=uuid → { messages } (marks incoming as read)
  */
 export async function GET(request: Request) {
-  const auth = requireAuth(request);
+  const auth = requireAuthenticatedUser(request);
   if (auth instanceof Response) return auth;
 
   const { searchParams } = new URL(request.url);
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
 
       return NextResponse.json({
         peer: { id: peer.id, fullName: peer.fullName, email: peer.email },
-        messages: messages.map((m) => ({
+        messages: messages.map((m: typeof messages[number]) => ({
           id: m.id,
           content: m.content,
           createdAt: m.createdAt.toISOString(),
@@ -55,7 +55,7 @@ export async function GET(request: Request) {
 
 /** POST /api/messages  body: { receiverId, content } */
 export async function POST(request: Request) {
-  const auth = requireAuth(request);
+  const auth = requireAuthenticatedUser(request);
   if (auth instanceof Response) return auth;
 
   try {

@@ -9,6 +9,7 @@ const prismaMock = vi.hoisted(() => ({
 
 vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
 
+import { signToken } from "@/lib/jwt";
 import { GET, POST } from "./route";
 
 describe("/api/courses", () => {
@@ -44,17 +45,30 @@ describe("/api/courses", () => {
   });
 
   describe("POST", () => {
-    it("returns 400 without tutorId", async () => {
+    it("returns 401 without authentication", async () => {
       const req = new Request("http://localhost/api/courses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: "T", subject: "S" }),
       });
       const res = await POST(req);
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(401);
     });
 
-    it("creates course when tutorId in body", async () => {
+    it("returns 403 for non-tutors", async () => {
+      const req = new Request("http://localhost/api/courses", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${signToken("student-1", "STUDENT")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ title: "T", subject: "S" }),
+      });
+      const res = await POST(req);
+      expect(res.status).toBe(403);
+    });
+
+    it("creates course for authenticated tutor", async () => {
       prismaMock.course.create.mockResolvedValue({
         id: 5,
         title: "Calc",
@@ -64,9 +78,11 @@ describe("/api/courses", () => {
 
       const req = new Request("http://localhost/api/courses", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          authorization: `Bearer ${signToken("t1", "TUTOR")}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          tutorId: "t1",
           title: "Calc",
           subject: "Math",
           isPublished: true,
@@ -74,6 +90,11 @@ describe("/api/courses", () => {
       });
       const res = await POST(req);
       expect(res.status).toBe(201);
+      expect(prismaMock.course.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ tutorId: "t1" }),
+        })
+      );
     });
   });
 });

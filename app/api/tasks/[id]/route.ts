@@ -1,24 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyToken } from "@/lib/jwt";
-
-function getToken(request: Request): string | null {
-  const authHeader = request.headers.get("authorization") || "";
-  if (authHeader.startsWith("Bearer ")) return authHeader.slice(7);
-  const cookie = request.headers.get("cookie") || "";
-  const match = /authToken=([^;]+)/.exec(cookie);
-  if (match) return decodeURIComponent(match[1]);
-  return null;
-}
+import { requireAuthenticatedUser, requireResourceOwner } from "@/lib/api-auth";
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
-    const token = getToken(req);
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const payload = verifyToken(token);
-    if (!payload) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    if (payload.role !== "STUDENT" && payload.role !== "TUTOR") {
+    const auth = requireAuthenticatedUser(req);
+    if (auth instanceof Response) return auth;
+    if (auth.role !== "STUDENT" && auth.role !== "TUTOR") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -39,8 +27,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
-    if (payload.role === "STUDENT" && task.studyPlan.studentId !== payload.sub) {
-      return NextResponse.json({ error: "You do not own this task" }, { status: 403 });
+    if (auth.role === "STUDENT") {
+      const ownership = requireResourceOwner({
+        ownerId: task.studyPlan.studentId,
+        userId: auth.sub,
+        errorMessage: "You do not own this task",
+      });
+      if (ownership instanceof Response) return ownership;
     }
 
     const updatedTask = await prisma.task.update({

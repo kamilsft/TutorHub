@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuthenticatedUser, requireTutorRole } from "@/lib/api-auth";
 
 export async function GET(request: Request) {
   try {
@@ -30,15 +31,12 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json().catch(() => ({}));
-    // Prefer header (set by dashboard middleware) fallback to body.tutorId
-    const hdrs = (request as any).headers || new Headers();
-    const tutorIdHeader = hdrs.get ? hdrs.get("x-user-id") : null;
-    const tutorId = tutorIdHeader || body.tutorId;
+    const auth = requireAuthenticatedUser(request);
+    if (auth instanceof Response) return auth;
+    const tutor = requireTutorRole(auth, "Only tutors can create courses");
+    if (tutor instanceof Response) return tutor;
 
-    if (!tutorId) {
-      return NextResponse.json({ error: "tutorId is required" }, { status: 400 });
-    }
+    const body = await request.json().catch(() => ({}));
     const title = (body.title || "").toString().trim();
     const subject = (body.subject || "").toString().trim();
     if (!title || !subject) {
@@ -50,7 +48,7 @@ export async function POST(request: Request) {
         title,
         subject,
         description: body.description || null,
-        tutorId,
+        tutorId: tutor.sub,
         price: typeof body.price === "number" ? body.price : body.price ? parseFloat(body.price) : null,
         level: body.level || null,
         isPublished: !!body.isPublished,

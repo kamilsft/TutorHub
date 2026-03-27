@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuthenticatedUser, requireResourceOwner } from "@/lib/api-auth";
 
 type TaskInput = {
   title: string;
@@ -11,7 +11,7 @@ type TaskInput = {
 
 export async function GET(req: Request) {
   try {
-    const auth = requireAuth(req);
+    const auth = requireAuthenticatedUser(req);
     if (auth instanceof Response) return auth;
 
     const url = new URL(req.url);
@@ -21,13 +21,13 @@ export async function GET(req: Request) {
     if (auth.role === "STUDENT") {
       if (scope === "discover") {
         const plans = await prisma.studyPlan.findMany({
-          where: { studentId: { not: auth.sub } },
-          include: {
-            tasks: { orderBy: { dueDate: "asc" } },
-            student: { select: { id: true, fullName: true } },
-          },
-          orderBy: { createdAt: "desc" },
-        });
+            where: { studentId: { not: auth.sub } },
+            include: {
+              tasks: { orderBy: { dueDate: "asc" } },
+              student: { select: { id: true, fullName: true } },
+            },
+            orderBy: { createdAt: "desc" },
+          });
         return NextResponse.json(plans);
       }
 
@@ -98,7 +98,7 @@ function parseTasks(rawTasks: unknown):
 
 export async function POST(req: Request) {
   try {
-    const auth = requireAuth(req);
+    const auth = requireAuthenticatedUser(req);
     if (auth instanceof Response) return auth;
     if (auth.role !== "STUDENT" && auth.role !== "TUTOR") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -168,7 +168,7 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   try {
-    const auth = requireAuth(req);
+    const auth = requireAuthenticatedUser(req);
     if (auth instanceof Response) return auth;
     if (auth.role !== "STUDENT" && auth.role !== "TUTOR") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -193,8 +193,13 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Study plan not found" }, { status: 404 });
     }
 
-    if (auth.role === "STUDENT" && existingPlan.studentId !== auth.sub) {
-      return NextResponse.json({ error: "You do not own this plan" }, { status: 403 });
+    if (auth.role === "STUDENT") {
+      const ownership = requireResourceOwner({
+        ownerId: existingPlan.studentId,
+        userId: auth.sub,
+        errorMessage: "You do not own this plan",
+      });
+      if (ownership instanceof Response) return ownership;
     }
 
     const updated = await prisma.studyPlan.update({
