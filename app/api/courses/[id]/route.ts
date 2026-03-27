@@ -119,17 +119,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
 
     const existing = await prisma.course.findUnique({
       where: { id },
-      select: {
-        tutorId: true,
-        _count: {
-          select: {
-            enrollments: true,
-            assignments: true,
-            tasks: true,
-            progresses: true,
-          },
-        },
-      },
+      select: { tutorId: true, isPublished: true },
     });
     if (!existing) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
@@ -142,20 +132,32 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     });
     if (ownership instanceof Response) return ownership;
 
-    const hasDependents =
-      existing._count.enrollments > 0 ||
-      existing._count.assignments > 0 ||
-      existing._count.tasks > 0 ||
-      existing._count.progresses > 0;
-
-    if (hasDependents) {
+    if (existing.isPublished) {
       return NextResponse.json(
-        { error: "Course cannot be deleted because it already has related activity. Unpublish it instead." },
+        { error: "Archive the course before deleting it." },
         { status: 409 }
       );
     }
 
-    await prisma.course.delete({ where: { id } });
+    await prisma.$transaction(async (tx) => {
+      await tx.submission.deleteMany({
+        where: { assignment: { courseId: id } },
+      });
+      await tx.assignment.deleteMany({
+        where: { courseId: id },
+      });
+      await tx.enrollment.deleteMany({
+        where: { courseId: id },
+      });
+      await tx.progress.deleteMany({
+        where: { courseId: id },
+      });
+      await tx.task.deleteMany({
+        where: { courseId: id },
+      });
+      await tx.course.delete({ where: { id } });
+    });
+
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("DELETE /api/courses/[id] error:", err);

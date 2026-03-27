@@ -69,7 +69,7 @@ export default function EditCourseForm({ course }: { course: EditableCourse }) {
     }
   }
 
-  async function handleUnpublish() {
+  async function handleTogglePublish(nextPublished: boolean) {
     setError(null);
     setSuccess(null);
     setSaving(true);
@@ -77,27 +77,32 @@ export default function EditCourseForm({ course }: { course: EditableCourse }) {
       const res = await fetch(`/api/courses/${course.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isPublished: false }),
+        body: JSON.stringify({ isPublished: nextPublished }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error || "Failed to unpublish course");
+        setError(data.error || `Failed to ${nextPublished ? "publish" : "archive"} course`);
         return;
       }
 
-      setIsPublished(false);
-      setSuccess("Course unpublished successfully.");
+      setIsPublished(nextPublished);
+      setSuccess(`Course ${nextPublished ? "published" : "archived"} successfully.`);
       router.refresh();
     } catch {
-      setError("Failed to unpublish course");
+      setError(`Failed to ${nextPublished ? "publish" : "archive"} course`);
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete() {
+    if (isPublished) {
+      setError("Archive the course before deleting it.");
+      return;
+    }
+
     const confirmed = window.confirm(
-      "Delete this course permanently? This only works when the course has no related activity."
+      "Delete this archived course permanently? This will also remove its assignments, enrollments, progress, tasks, and submissions."
     );
     if (!confirmed) return;
 
@@ -183,33 +188,21 @@ export default function EditCourseForm({ course }: { course: EditableCourse }) {
           />
         </div>
       </div>
-
-      <div className="flex items-center gap-3">
-        <input
-          id="publish"
-          type="checkbox"
-          checked={isPublished}
-          onChange={(e) => setIsPublished(e.target.checked)}
-        />
-        <label htmlFor="publish" className="text-sm">
-          Publish (visible to students)
-        </label>
-      </div>
-
+      
       <div className="flex flex-wrap justify-between gap-3">
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={handleUnpublish}
-            disabled={saving || deleting || !isPublished}
+            onClick={() => handleTogglePublish(!isPublished)}
+            disabled={saving || deleting}
             className="rounded border border-amber-300 px-4 py-2 text-amber-700 disabled:opacity-60"
           >
-            Unpublish
+            {isPublished ? "Archive course" : "Publish course"}
           </button>
           <button
             type="button"
             onClick={handleDelete}
-            disabled={saving || deleting}
+            disabled={saving || deleting || isPublished}
             className="rounded border border-red-300 px-4 py-2 text-red-700 disabled:opacity-60"
           >
             {deleting ? "Deleting..." : "Delete course"}

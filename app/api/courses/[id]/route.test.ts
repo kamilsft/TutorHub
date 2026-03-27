@@ -1,10 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const prismaMock = vi.hoisted(() => ({
+  $transaction: vi.fn(),
   course: {
     findUnique: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+  },
+  submission: {
+    deleteMany: vi.fn(),
+  },
+  assignment: {
+    deleteMany: vi.fn(),
+  },
+  enrollment: {
+    deleteMany: vi.fn(),
+  },
+  progress: {
+    deleteMany: vi.fn(),
+  },
+  task: {
+    deleteMany: vi.fn(),
   },
 }));
 
@@ -137,6 +153,7 @@ describe("PATCH /api/courses/[id]", () => {
 describe("DELETE /api/courses/[id]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    prismaMock.$transaction.mockImplementation(async (callback: (tx: typeof prismaMock) => Promise<unknown>) => callback(prismaMock as never));
   });
 
   it("returns 401 without token", async () => {
@@ -171,10 +188,10 @@ describe("DELETE /api/courses/[id]", () => {
     expect(res.status).toBe(404);
   });
 
-  it("returns 409 when course has related records", async () => {
+  it("returns 409 when course is not archived yet", async () => {
     prismaMock.course.findUnique.mockResolvedValue({
       tutorId: OWNER,
-      _count: { enrollments: 1, assignments: 0, tasks: 0, progresses: 0 },
+      isPublished: true,
     } as never);
 
     const req = new Request("http://localhost/api/courses/1", {
@@ -189,12 +206,17 @@ describe("DELETE /api/courses/[id]", () => {
     expect(prismaMock.course.delete).not.toHaveBeenCalled();
   });
 
-  it("deletes owned course when no related records exist", async () => {
+  it("deletes archived course and related records", async () => {
     prismaMock.course.findUnique.mockResolvedValue({
       tutorId: OWNER,
-      _count: { enrollments: 0, assignments: 0, tasks: 0, progresses: 0 },
+      isPublished: false,
     } as never);
     prismaMock.course.delete.mockResolvedValue({ id: 1 } as never);
+    prismaMock.submission.deleteMany.mockResolvedValue({ count: 0 } as never);
+    prismaMock.assignment.deleteMany.mockResolvedValue({ count: 0 } as never);
+    prismaMock.enrollment.deleteMany.mockResolvedValue({ count: 0 } as never);
+    prismaMock.progress.deleteMany.mockResolvedValue({ count: 0 } as never);
+    prismaMock.task.deleteMany.mockResolvedValue({ count: 0 } as never);
 
     const req = new Request("http://localhost/api/courses/1", {
       method: "DELETE",
@@ -205,6 +227,21 @@ describe("DELETE /api/courses/[id]", () => {
 
     const res = await DELETE(req, { params: { id: "1" } });
     expect(res.status).toBe(200);
+    expect(prismaMock.submission.deleteMany).toHaveBeenCalledWith({
+      where: { assignment: { courseId: 1 } },
+    });
+    expect(prismaMock.assignment.deleteMany).toHaveBeenCalledWith({
+      where: { courseId: 1 },
+    });
+    expect(prismaMock.enrollment.deleteMany).toHaveBeenCalledWith({
+      where: { courseId: 1 },
+    });
+    expect(prismaMock.progress.deleteMany).toHaveBeenCalledWith({
+      where: { courseId: 1 },
+    });
+    expect(prismaMock.task.deleteMany).toHaveBeenCalledWith({
+      where: { courseId: 1 },
+    });
     expect(prismaMock.course.delete).toHaveBeenCalledWith({ where: { id: 1 } });
   });
 });
