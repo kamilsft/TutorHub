@@ -111,7 +111,7 @@ export default async function TutorCoursesPage() {
 
         <section>
           <h2 className="mb-4 text-lg font-semibold text-slate-900">Create a new course</h2>
-          <CreateCourseForm tutorId={userId} />
+          <CreateCourseForm />
         </section>
       </div>
     </main>

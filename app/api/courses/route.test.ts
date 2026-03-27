@@ -96,5 +96,35 @@ describe("/api/courses", () => {
         })
       );
     });
+
+    it("ignores spoofed tutorId input and uses the authenticated tutor", async () => {
+      prismaMock.course.create.mockResolvedValue({
+        id: 6,
+        title: "Physics I",
+        subject: "Physics",
+        tutorId: "real-tutor",
+      } as never);
+
+      const req = new Request("http://localhost/api/courses", {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${signToken("real-tutor", "TUTOR")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: "Physics I",
+          subject: "Physics",
+          tutorId: "spoofed-tutor",
+        }),
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(201);
+      expect(prismaMock.course.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ tutorId: "real-tutor" }),
+        })
+      );
+    });
   });
 });
