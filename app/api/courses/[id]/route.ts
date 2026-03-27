@@ -104,3 +104,61 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     return NextResponse.json({ error: "Failed to update course" }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+  try {
+    const auth = requireAuthenticatedUser(request);
+    if (auth instanceof Response) return auth;
+    const tutor = requireTutorRole(auth, "Only tutors can delete courses");
+    if (tutor instanceof Response) return tutor;
+
+    const id = Number(params.id);
+    if (Number.isNaN(id)) {
+      return NextResponse.json({ error: "Invalid course id" }, { status: 400 });
+    }
+
+    const existing = await prisma.course.findUnique({
+      where: { id },
+      select: {
+        tutorId: true,
+        _count: {
+          select: {
+            enrollments: true,
+            assignments: true,
+            tasks: true,
+            progresses: true,
+          },
+        },
+      },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Course not found" }, { status: 404 });
+    }
+
+    const ownership = requireResourceOwner({
+      ownerId: existing.tutorId,
+      userId: tutor.sub,
+      errorMessage: "You do not own this course",
+    });
+    if (ownership instanceof Response) return ownership;
+
+    const hasDependents =
+      existing._count.enrollments > 0 ||
+      existing._count.assignments > 0 ||
+      existing._count.tasks > 0 ||
+      existing._count.progresses > 0;
+
+    if (hasDependents) {
+      return NextResponse.json(
+        { error: "Course cannot be deleted because it already has related activity. Unpublish it instead." },
+        { status: 409 }
+      );
+    }
+
+    await prisma.course.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("DELETE /api/courses/[id] error:", err);
+    return NextResponse.json({ error: "Failed to delete course" }, { status: 500 });
+  }
+}

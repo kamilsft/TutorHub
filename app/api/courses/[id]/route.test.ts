@@ -4,13 +4,14 @@ const prismaMock = vi.hoisted(() => ({
   course: {
     findUnique: vi.fn(),
     update: vi.fn(),
+    delete: vi.fn(),
   },
 }));
 
 vi.mock("@/lib/prisma", () => ({ prisma: prismaMock }));
 
 import { signToken } from "@/lib/jwt";
-import { PATCH } from "./route";
+import { DELETE, PATCH } from "./route";
 
 const OWNER = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 const OTHER_TUTOR = "cccccccc-cccc-cccc-cccc-cccccccccccc";
@@ -130,5 +131,80 @@ describe("PATCH /api/courses/[id]", () => {
     const res = await PATCH(req, { params: { id: "1" } });
     expect(res.status).toBe(400);
     expect(prismaMock.course.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("DELETE /api/courses/[id]", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns 401 without token", async () => {
+    const req = new Request("http://localhost/api/courses/1", { method: "DELETE" });
+    const res = await DELETE(req, { params: { id: "1" } });
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 403 for non-tutor roles", async () => {
+    const req = new Request("http://localhost/api/courses/1", {
+      method: "DELETE",
+      headers: {
+        authorization: `Bearer ${signToken("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "STUDENT")}`,
+      },
+    });
+
+    const res = await DELETE(req, { params: { id: "1" } });
+    expect(res.status).toBe(403);
+  });
+
+  it("returns 404 when course does not exist", async () => {
+    prismaMock.course.findUnique.mockResolvedValue(null);
+
+    const req = new Request("http://localhost/api/courses/1", {
+      method: "DELETE",
+      headers: {
+        authorization: `Bearer ${signToken(OWNER, "TUTOR")}`,
+      },
+    });
+
+    const res = await DELETE(req, { params: { id: "1" } });
+    expect(res.status).toBe(404);
+  });
+
+  it("returns 409 when course has related records", async () => {
+    prismaMock.course.findUnique.mockResolvedValue({
+      tutorId: OWNER,
+      _count: { enrollments: 1, assignments: 0, tasks: 0, progresses: 0 },
+    } as never);
+
+    const req = new Request("http://localhost/api/courses/1", {
+      method: "DELETE",
+      headers: {
+        authorization: `Bearer ${signToken(OWNER, "TUTOR")}`,
+      },
+    });
+
+    const res = await DELETE(req, { params: { id: "1" } });
+    expect(res.status).toBe(409);
+    expect(prismaMock.course.delete).not.toHaveBeenCalled();
+  });
+
+  it("deletes owned course when no related records exist", async () => {
+    prismaMock.course.findUnique.mockResolvedValue({
+      tutorId: OWNER,
+      _count: { enrollments: 0, assignments: 0, tasks: 0, progresses: 0 },
+    } as never);
+    prismaMock.course.delete.mockResolvedValue({ id: 1 } as never);
+
+    const req = new Request("http://localhost/api/courses/1", {
+      method: "DELETE",
+      headers: {
+        authorization: `Bearer ${signToken(OWNER, "TUTOR")}`,
+      },
+    });
+
+    const res = await DELETE(req, { params: { id: "1" } });
+    expect(res.status).toBe(200);
+    expect(prismaMock.course.delete).toHaveBeenCalledWith({ where: { id: 1 } });
   });
 });
