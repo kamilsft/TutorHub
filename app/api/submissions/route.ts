@@ -4,6 +4,8 @@ import {
   requireAuthenticatedUser,
   requireResourceOwner,
 } from "@/lib/api-auth";
+import { isServiceError } from "@/lib/services/service-error";
+import { validateSubmissionPayload } from "@/lib/validation";
 
 // GET /api/submissions?assignmentId=1  or  ?courseId=1
 // tutors see all submissions for their course, students only see their own
@@ -82,16 +84,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Only students can submit assignments" }, { status: 403 });
     }
 
-    const body = await request.json().catch(() => ({}));
-    const assignmentId = Number(body.assignmentId || 0);
-    const content = (body.content || "").trim();
-
-    if (!assignmentId) {
-      return NextResponse.json({ error: "assignmentId is required" }, { status: 400 });
-    }
-    if (!content) {
-      return NextResponse.json({ error: "Submission content cannot be empty" }, { status: 400 });
-    }
+    const { assignmentId, content } = validateSubmissionPayload(await request.json().catch(() => ({})));
 
     // check assignment exists
     const assignment = await prisma.assignment.findUnique({ where: { id: assignmentId } });
@@ -141,6 +134,9 @@ export async function POST(request: Request) {
       { status: resubmitted ? 200 : 201 }
     );
   } catch (err) {
+    if (isServiceError(err)) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     console.error("POST /api/submissions error:", err);
     return NextResponse.json({ error: "Failed to submit" }, { status: 500 });
   }

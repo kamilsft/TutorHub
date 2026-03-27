@@ -6,6 +6,7 @@ import {
   sendMessage,
 } from "@/lib/messages";
 import { ServiceError } from "@/lib/services/service-error";
+import { validateMessageSendPayload } from "@/lib/validation";
 
 export async function listMessageThreadsForUser(userId: string) {
   return listThreadsForUser(userId);
@@ -46,40 +47,31 @@ export async function sendMessageFromUser(input: {
   receiverId: string;
   content: string;
 }) {
-  const receiverId = input.receiverId.trim();
-  const content = input.content.trim();
+  const payload = validateMessageSendPayload(input);
 
-  if (!receiverId) {
-    throw new ServiceError("receiverId is required", 400);
-  }
-
-  if (receiverId === input.senderId) {
+  if (payload.receiverId === input.senderId) {
     throw new ServiceError("Cannot message yourself", 400);
   }
 
-  if (!content || content.length > 8000) {
-    throw new ServiceError("content must be 1-8000 characters", 400);
-  }
-
-  const receiver = await prisma.user.findUnique({ where: { id: receiverId } });
+  const receiver = await prisma.user.findUnique({ where: { id: payload.receiverId } });
   if (!receiver) {
     throw new ServiceError("Receiver not found", 404);
   }
 
   const message = await sendMessage({
     senderId: input.senderId,
-    receiverId,
-    content,
+    receiverId: payload.receiverId,
+    content: payload.content,
   });
 
   return {
     message: {
-      id: message.id,
-      content: message.content,
-      createdAt: message.createdAt.toISOString(),
-      isRead: message.isRead,
-      senderId: message.senderId,
-      receiverId: message.receiverId,
-    },
-  };
+        id: message.id,
+        content: message.content,
+        createdAt: message.createdAt.toISOString(),
+        isRead: message.isRead,
+        senderId: message.senderId,
+        receiverId: message.receiverId,
+      },
+    };
 }

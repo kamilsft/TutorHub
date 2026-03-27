@@ -1,14 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ServiceError } from "@/lib/services/service-error";
-
-type CourseInput = {
-  title?: unknown;
-  subject?: unknown;
-  description?: unknown;
-  price?: unknown;
-  level?: unknown;
-  isPublished?: unknown;
-};
+import { validateCoursePayload } from "@/lib/validation";
 
 export async function listPublishedCourses(subject: string | null) {
   const where: { isPublished: true; subject?: string } = { isPublished: true };
@@ -25,23 +17,18 @@ export async function listPublishedCourses(subject: string | null) {
   });
 }
 
-export async function createCourseForTutor(tutorId: string, input: CourseInput) {
-  const title = (input.title || "").toString().trim();
-  const subject = (input.subject || "").toString().trim();
-
-  if (!title || !subject) {
-    throw new ServiceError("title and subject are required", 400);
-  }
+export async function createCourseForTutor(tutorId: string, input: unknown) {
+  const course = validateCoursePayload(input);
 
   return prisma.course.create({
     data: {
-      title,
-      subject,
-      description: input.description ? String(input.description).trim() || null : null,
+      title: course.title,
+      subject: course.subject,
+      description: course.description,
       tutorId,
-      price: typeof input.price === "number" ? input.price : input.price ? parseFloat(String(input.price)) : null,
-      level: input.level ? String(input.level).trim() || null : null,
-      isPublished: !!input.isPublished,
+      price: course.price,
+      level: course.level,
+      isPublished: course.isPublished,
     },
   });
 }

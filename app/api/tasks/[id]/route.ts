@@ -1,20 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAuthenticatedUser, requireResourceOwner } from "@/lib/api-auth";
+import { isServiceError } from "@/lib/services/service-error";
+import { validateTaskStatusPayload } from "@/lib/validation";
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
     const auth = requireAuthenticatedUser(req);
     if (auth instanceof Response) return auth;
 
-    const { completed } = await req.json().catch(() => ({}));
+    const { completed } = validateTaskStatusPayload(await req.json().catch(() => ({})));
     const taskId = Number(params.id);
 
     if (Number.isNaN(taskId)) {
       return NextResponse.json({ error: "Invalid task id" }, { status: 400 });
-    }
-    if (typeof completed !== "boolean") {
-      return NextResponse.json({ error: "Invalid completed value" }, { status: 400 });
     }
 
     const task = await prisma.task.findUnique({
@@ -38,6 +37,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     return NextResponse.json(updatedTask, { status: 200 });
   } catch (err) {
+    if (isServiceError(err)) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     console.error("PATCH /api/tasks/[id] error:", err);
     return NextResponse.json({ error: "Failed to update task" }, { status: 500 });
   }

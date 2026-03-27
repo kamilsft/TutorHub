@@ -5,6 +5,8 @@ import {
   requireResourceOwner,
   requireTutorRole,
 } from "@/lib/api-auth";
+import { isServiceError } from "@/lib/services/service-error";
+import { validateAssignmentPayload } from "@/lib/validation";
 
 // GET /api/assignments?courseId=___
 // fetches all assignments for a specific course
@@ -69,15 +71,9 @@ export async function POST(request: Request) {
     const tutor = requireTutorRole(auth, "Only tutors can create assignments");
     if (tutor instanceof Response) return tutor;
 
-    const body = await request.json().catch(() => ({}));
-    const courseId = Number(body.courseId || 0);
-    const title = (body.title || "").trim();
-    const description = (body.description || "").trim() || null;
-    const dueDate = body.dueDate ? new Date(body.dueDate) : null;
-
-    if (!courseId || !title) {
-      return NextResponse.json({ error: "courseId and title are required" }, { status: 400 });
-    }
+    const { courseId, title, description, dueDate } = validateAssignmentPayload(
+      await request.json().catch(() => ({}))
+    );
 
     // make sure the tutor actually owns this course
     const course = await prisma.course.findUnique({ where: { id: courseId } });
@@ -94,6 +90,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json(assignment, { status: 201 });
   } catch (err) {
+    if (isServiceError(err)) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     console.error("POST /api/assignments error:", err);
     return NextResponse.json({ error: "Failed to create assignment" }, { status: 500 });
   }

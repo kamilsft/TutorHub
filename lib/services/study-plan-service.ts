@@ -1,46 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { ServiceError } from "@/lib/services/service-error";
-
-type TaskInput = {
-  title?: unknown;
-  dueDate?: unknown;
-  courseId?: unknown;
-  completed?: unknown;
-};
-
-type StudyPlanInput = {
-  sourcePlanId?: unknown;
-  planId?: unknown;
-  tasks?: unknown;
-};
-
-function parseTasks(rawTasks: unknown) {
-  if (!Array.isArray(rawTasks) || rawTasks.length === 0) {
-    throw new ServiceError("At least one task is required", 400);
-  }
-
-  return rawTasks.map((rawTask, index) => {
-    const task = rawTask as TaskInput;
-    const title = (task?.title || "").toString().trim();
-    const dueDate = new Date(String(task?.dueDate || ""));
-    const courseId = Number(task?.courseId);
-
-    if (!title) throw new ServiceError(`Task ${index + 1}: title is required`, 400);
-    if (!Number.isInteger(courseId) || courseId <= 0) {
-      throw new ServiceError(`Task ${index + 1}: course is required`, 400);
-    }
-    if (Number.isNaN(dueDate.getTime())) {
-      throw new ServiceError(`Task ${index + 1}: due date is invalid`, 400);
-    }
-
-    return {
-      title,
-      dueDate,
-      courseId,
-      completed: !!task?.completed,
-    };
-  });
-}
+import {
+  validateStudyPlanCreatePayload,
+  validateStudyPlanUpdatePayload,
+} from "@/lib/validation";
 
 export async function listStudyPlansForUser(userId: string) {
   return prisma.studyPlan.findMany({
@@ -50,7 +13,7 @@ export async function listStudyPlansForUser(userId: string) {
   });
 }
 
-export async function createStudyPlanForUser(userId: string, input: StudyPlanInput) {
+export async function createStudyPlanForUser(userId: string, input: unknown) {
   const studentExists = await prisma.user.findUnique({
     where: { id: userId },
     select: { id: true },
@@ -60,7 +23,8 @@ export async function createStudyPlanForUser(userId: string, input: StudyPlanInp
     throw new ServiceError("Student not found", 400);
   }
 
-  const sourcePlanId = Number(input.sourcePlanId || 0);
+  const parsed = validateStudyPlanCreatePayload(input);
+  const sourcePlanId = parsed.sourcePlanId;
   let taskPayload: Array<{ title: string; dueDate: Date; courseId: number; completed: boolean }> = [];
 
   if (sourcePlanId) {
@@ -80,7 +44,7 @@ export async function createStudyPlanForUser(userId: string, input: StudyPlanInp
       completed: !!task.completed,
     }));
   } else {
-    taskPayload = parseTasks(input.tasks);
+    taskPayload = parsed.tasks || [];
   }
 
   return prisma.studyPlan.create({
@@ -94,11 +58,9 @@ export async function createStudyPlanForUser(userId: string, input: StudyPlanInp
   });
 }
 
-export async function updateOwnedStudyPlan(userId: string, input: StudyPlanInput) {
-  const planId = Number(input.planId || 0);
-  if (!planId) {
-    throw new ServiceError("planId is required", 400);
-  }
+export async function updateOwnedStudyPlan(userId: string, input: unknown) {
+  const parsed = validateStudyPlanUpdatePayload(input);
+  const planId = parsed.planId;
 
   const existingPlan = await prisma.studyPlan.findUnique({
     where: { id: planId },
@@ -113,14 +75,12 @@ export async function updateOwnedStudyPlan(userId: string, input: StudyPlanInput
     throw new ServiceError("You do not own this plan", 403);
   }
 
-  const tasks = parseTasks(input.tasks);
-
   return prisma.studyPlan.update({
     where: { id: planId },
     data: {
       tasks: {
         deleteMany: {},
-        create: tasks,
+        create: parsed.tasks,
       },
     },
     include: { tasks: true },
