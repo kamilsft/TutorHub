@@ -97,7 +97,6 @@ export default async function CreateStudyPlanPage({ searchParams }: Props) {
             </p>
           )}
           <StudyPlanForm
-            studentId={studentId}
             initialTasks={copiedTasks}
             availableCourses={availableCourses}
             onSavedPath="/dashboard/student/study-plan/view-plans"

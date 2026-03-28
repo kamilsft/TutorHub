@@ -1,30 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyToken } from "@/lib/jwt";
+import { requireAuthenticatedUser } from "@/lib/api-auth";
 
 // GET /api/courses/enrolled
 // returns the courses the logged in student is enrolled in
 export async function GET(request: Request) {
   try {
-    const authHeader = request.headers.get("authorization") || "";
-    let token: string | null = null;
-    if (authHeader.startsWith("Bearer ")) token = authHeader.slice(7);
-    else {
-      const cookie = request.headers.get("cookie") || "";
-      const m = /authToken=([^;]+)/.exec(cookie);
-      if (m) token = decodeURIComponent(m[1]);
-    }
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = requireAuthenticatedUser(request);
+    if (auth instanceof Response) return auth;
 
-    const payload = verifyToken(token);
-    if (!payload) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-
-    if (payload.role !== "STUDENT") {
+    if (auth.role !== "STUDENT") {
       return NextResponse.json({ error: "Only students can access this" }, { status: 403 });
     }
 
     const enrollments = await prisma.enrollment.findMany({
-      where: { studentId: payload.sub, status: "ACTIVE" },
+      where: { studentId: auth.sub, status: "ACTIVE" },
       include: {
         course: {
           select: {

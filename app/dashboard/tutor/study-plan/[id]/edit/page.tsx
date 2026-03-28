@@ -65,7 +65,6 @@ export default async function EditStudyPlanPage({ params }: Props) {
         </div>
 
         <StudyPlanForm
-          studentId={plan.studentId}
           initialTasks={plan.tasks}
           planId={plan.id}
           availableCourses={availableCourses}

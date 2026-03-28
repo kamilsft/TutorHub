@@ -1,29 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyToken } from "@/lib/jwt";
-
-function getToken(request: Request): string | null {
-  const authHeader = request.headers.get("authorization") || "";
-  if (authHeader.startsWith("Bearer ")) return authHeader.slice(7);
-
-  const cookie = request.headers.get("cookie") || "";
-  const match = /authToken=([^;]+)/.exec(cookie);
-  if (match) return decodeURIComponent(match[1]);
-  return null;
-}
+import {
+  requireAuthenticatedUser,
+  requireResourceOwner,
+  requireTutorRole,
+} from "@/lib/api-auth";
 
 // PATCH /api/courses/[id]
 // updates a course owned by the logged-in tutor
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
-    const token = getToken(request);
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const payload = verifyToken(token);
-    if (!payload) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    if (payload.role !== "TUTOR") {
-      return NextResponse.json({ error: "Only tutors can update courses" }, { status: 403 });
-    }
+    const auth = requireAuthenticatedUser(request);
+    if (auth instanceof Response) return auth;
+    const tutor = requireTutorRole(auth, "Only tutors can update courses");
+    if (tutor instanceof Response) return tutor;
 
     const id = Number(params.id);
     if (Number.isNaN(id)) {
@@ -37,9 +27,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     if (!existing) {
       return NextResponse.json({ error: "Course not found" }, { status: 404 });
     }
-    if (existing.tutorId !== payload.sub) {
-      return NextResponse.json({ error: "You do not own this course" }, { status: 403 });
-    }
+    const ownership = requireResourceOwner({
+      ownerId: existing.tutorId,
+      userId: tutor.sub,
+      errorMessage: "You do not own this course",
+    });
+    if (ownership instanceof Response) return ownership;
 
     const body = await request.json().catch(() => ({}));
     const data: {
@@ -109,5 +102,65 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   } catch (err) {
     console.error("PATCH /api/courses/[id] error:", err);
     return NextResponse.json({ error: "Failed to update course" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+  try {
+    const auth = requireAuthenticatedUser(request);
+    if (auth instanceof Response) return auth;
+    const tutor = requireTutorRole(auth, "Only tutors can delete courses");
+    if (tutor instanceof Response) return tutor;
+
+    const id = Number(params.id);
+    if (Number.isNaN(id)) {
+      return NextResponse.json({ error: "Invalid course id" }, { status: 400 });
+    }
+
+    const existing = await prisma.course.findUnique({
+      where: { id },
+      select: { tutorId: true, isPublished: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Course not found" }, { status: 404 });
+    }
+
+    const ownership = requireResourceOwner({
+      ownerId: existing.tutorId,
+      userId: tutor.sub,
+      errorMessage: "You do not own this course",
+    });
+    if (ownership instanceof Response) return ownership;
+
+    if (existing.isPublished) {
+      return NextResponse.json(
+        { error: "Archive the course before deleting it." },
+        { status: 409 }
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.submission.deleteMany({
+        where: { assignment: { courseId: id } },
+      });
+      await tx.assignment.deleteMany({
+        where: { courseId: id },
+      });
+      await tx.enrollment.deleteMany({
+        where: { courseId: id },
+      });
+      await tx.progress.deleteMany({
+        where: { courseId: id },
+      });
+      await tx.task.deleteMany({
+        where: { courseId: id },
+      });
+      await tx.course.delete({ where: { id } });
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("DELETE /api/courses/[id] error:", err);
+    return NextResponse.json({ error: "Failed to delete course" }, { status: 500 });
   }
 }

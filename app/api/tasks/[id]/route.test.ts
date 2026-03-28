@@ -75,10 +75,30 @@ describe("PATCH /api/tasks/[id]", () => {
     expect(res.status).toBe(200);
   });
 
-  it("allows tutor to update a task", async () => {
+  it("returns 403 when a tutor tries to update another user's task", async () => {
     prismaMock.task.findUnique.mockResolvedValue({
       id: 1,
       studyPlan: { studentId: OTHER_STUDENT },
+    } as never);
+
+    const req = new Request("http://localhost/api/tasks/1", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        authorization: `Bearer ${signToken(TUTOR, "TUTOR")}`,
+      },
+      body: JSON.stringify({ completed: false }),
+    });
+
+    const res = await PATCH(req, { params: { id: "1" } });
+    expect(res.status).toBe(403);
+    expect(prismaMock.task.update).not.toHaveBeenCalled();
+  });
+
+  it("updates task when the authenticated owner has tutor role", async () => {
+    prismaMock.task.findUnique.mockResolvedValue({
+      id: 1,
+      studyPlan: { studentId: TUTOR },
     } as never);
     prismaMock.task.update.mockResolvedValue({
       id: 1,

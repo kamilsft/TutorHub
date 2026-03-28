@@ -1,16 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyToken } from "@/lib/jwt";
-
-// get token from cookie or authorization header
-function getToken(request: Request): string | null {
-  const authHeader = request.headers.get("authorization") || "";
-  if (authHeader.startsWith("Bearer ")) return authHeader.slice(7);
-  const cookie = request.headers.get("cookie") || "";
-  const match = /authToken=([^;]+)/.exec(cookie);
-  if (match) return decodeURIComponent(match[1]);
-  return null;
-}
+import { requireAuthenticatedUser, requireResourceOwner } from "@/lib/api-auth";
 
 // GET /api/assignments/[id]
 // returns assignment details + submissions (students see only theirs, tutors see all)
@@ -19,11 +9,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const token = getToken(request);
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const payload = verifyToken(token);
-    if (!payload) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    const auth = requireAuthenticatedUser(request);
+    if (auth instanceof Response) return auth;
 
     const id = Number(params.id);
     if (Number.isNaN(id)) {
@@ -32,7 +19,7 @@ export async function GET(
 
     // fetch the assignment - include different stuff depending on role
     let assignment;
-    if (payload.role === "TUTOR") {
+    if (auth.role === "TUTOR") {
       assignment = await prisma.assignment.findUnique({
         where: { id },
         include: {
@@ -52,7 +39,7 @@ export async function GET(
         include: {
           course: { select: { id: true, title: true, subject: true, tutorId: true } },
           submissions: {
-            where: { studentId: payload.sub },
+            where: { studentId: auth.sub },
           },
         },
       });
@@ -63,10 +50,10 @@ export async function GET(
     }
 
     // check access - student must be enrolled
-    if (payload.role === "STUDENT") {
+    if (auth.role === "STUDENT") {
       const enrollment = await prisma.enrollment.findUnique({
         where: {
-          studentId_courseId: { studentId: payload.sub, courseId: assignment.courseId } as any,
+          studentId_courseId: { studentId: auth.sub, courseId: assignment.courseId } as any,
         },
       });
       if (!enrollment || enrollment.status !== "ACTIVE") {
@@ -75,8 +62,17 @@ export async function GET(
     }
 
     // tutor must own the course
-    if (payload.role === "TUTOR" && assignment.course.tutorId !== payload.sub) {
-      return NextResponse.json({ error: "You do not own this course" }, { status: 403 });
+    if (auth.role === "TUTOR") {
+      const ownership = requireResourceOwner({
+        ownerId: assignment.course.tutorId,
+        userId: auth.sub,
+        errorMessage: "You do not own this course",
+      });
+      if (ownership instanceof Response) return ownership;
+    }
+
+    if (auth.role !== "STUDENT" && auth.role !== "TUTOR") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     return NextResponse.json(assignment);

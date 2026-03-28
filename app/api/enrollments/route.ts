@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyToken } from "@/lib/jwt";
+import { requireAuthenticatedUser } from "@/lib/api-auth";
 
 export async function POST(request: Request) {
   try {
@@ -8,22 +8,11 @@ export async function POST(request: Request) {
     const courseId = Number(body.courseId || 0);
     if (!courseId) return NextResponse.json({ error: "courseId is required" }, { status: 400 });
 
-    // Extract token from Authorization header or cookie
-    const authHeader = request.headers.get("authorization") || "";
-    let token: string | null = null;
-    if (authHeader.startsWith("Bearer ")) token = authHeader.slice(7);
-    else {
-      const cookie = request.headers.get("cookie") || "";
-      const m = /authToken=([^;]+)/.exec(cookie);
-      if (m) token = decodeURIComponent(m[1]);
-    }
-    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = requireAuthenticatedUser(request);
+    if (auth instanceof Response) return auth;
+    if (auth.role !== "STUDENT") return NextResponse.json({ error: "Only students can enroll" }, { status: 403 });
 
-    const payload = verifyToken(token);
-    if (!payload) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    if (payload.role !== "STUDENT") return NextResponse.json({ error: "Only students can enroll" }, { status: 403 });
-
-    const studentId = payload.sub;
+    const studentId = auth.sub;
 
     const course = await prisma.course.findUnique({ where: { id: courseId } });
     if (!course || !course.isPublished) return NextResponse.json({ error: "Course not found" }, { status: 404 });

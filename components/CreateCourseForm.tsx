@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function CreateCourseForm({ tutorId }: { tutorId?: string }) {
+export default function CreateCourseForm() {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
@@ -25,7 +25,7 @@ export default function CreateCourseForm({ tutorId }: { tutorId?: string }) {
     }
     setSaving(true);
     try {
-      const payload: any = {
+      const payload = {
         title: title.trim(),
         subject: subject.trim(),
         description: description.trim() || null,
@@ -33,7 +33,6 @@ export default function CreateCourseForm({ tutorId }: { tutorId?: string }) {
         price: price ? Number(price) : null,
         isPublished,
       };
-      if (tutorId) payload.tutorId = tutorId;
       const res = await fetch("/api/courses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

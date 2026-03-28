@@ -26,6 +26,7 @@ export default function EditCourseForm({ course }: { course: EditableCourse }) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -65,6 +66,65 @@ export default function EditCourseForm({ course }: { course: EditableCourse }) {
       setError("Failed to update course");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleTogglePublish(nextPublished: boolean) {
+    setError(null);
+    setSuccess(null);
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/courses/${course.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPublished: nextPublished }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || `Failed to ${nextPublished ? "publish" : "archive"} course`);
+        return;
+      }
+
+      setIsPublished(nextPublished);
+      setSuccess(`Course ${nextPublished ? "published" : "archived"} successfully.`);
+      router.refresh();
+    } catch {
+      setError(`Failed to ${nextPublished ? "publish" : "archive"} course`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (isPublished) {
+      setError("Archive the course before deleting it.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Delete this archived course permanently? This will also remove its assignments, enrollments, progress, tasks, and submissions."
+    );
+    if (!confirmed) return;
+
+    setError(null);
+    setSuccess(null);
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/courses/${course.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || "Failed to delete course");
+        return;
+      }
+
+      router.push("/dashboard/tutor/courses");
+      router.refresh();
+    } catch {
+      setError("Failed to delete course");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -128,26 +188,32 @@ export default function EditCourseForm({ course }: { course: EditableCourse }) {
           />
         </div>
       </div>
-
-      <div className="flex items-center gap-3">
-        <input
-          id="publish"
-          type="checkbox"
-          checked={isPublished}
-          onChange={(e) => setIsPublished(e.target.checked)}
-        />
-        <label htmlFor="publish" className="text-sm">
-          Publish (visible to students)
-        </label>
-      </div>
-
-      <div className="flex justify-end">
+      
+      <div className="flex flex-wrap justify-between gap-3">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => handleTogglePublish(!isPublished)}
+            disabled={saving || deleting}
+            className="rounded border border-amber-300 px-4 py-2 text-amber-700 disabled:opacity-60"
+          >
+            {isPublished ? "Archive course" : "Publish course"}
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={saving || deleting || isPublished}
+            className="rounded border border-red-300 px-4 py-2 text-red-700 disabled:opacity-60"
+          >
+            {deleting ? "Deleting..." : "Delete course"}
+          </button>
+        </div>
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || deleting}
           className="rounded bg-emerald-600 px-4 py-2 text-white"
         >
-          {saving ? "Saving…" : "Save changes"}
+          {saving ? "Saving..." : "Save changes"}
         </button>
       </div>
     </form>
