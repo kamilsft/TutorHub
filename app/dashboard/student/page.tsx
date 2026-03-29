@@ -110,6 +110,14 @@ export default function StudentDashboardPage() {
       href: "/courses",
       cta: "Open catalog",
     },
+
+    // To view enrolled courses instead of the full catalog
+    {
+      title: "My Courses",
+      description: "View courses you are enrolled in.",
+      href: "/dashboard/student/courses",
+      cta: "View courses",
+    },
     {
       title: "My assignments",
       description: "View due dates, submit work, and track feedback from your tutors.",
