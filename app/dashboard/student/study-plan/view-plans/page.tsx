@@ -3,6 +3,7 @@ import { verifyToken } from "@/lib/jwt";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma"; // assuming you use Prisma
 import StudyPlanCard from "@/components/StudyPlanCard";
+import DeleteStudyPlanButton from "@/components/DeleteStudyPlan";
 
 export default async function ViewStudyPlansPage() {
   try {
@@ -30,7 +31,7 @@ export default async function ViewStudyPlansPage() {
 
     return (
       <main className="p-8">
-        {/* Header + Back link */}      
+        {/* Header + Back link */}
         <div className="container mx-auto px-4 mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-semibold">My Study Plans</h1>
           <Link
@@ -41,37 +42,38 @@ export default async function ViewStudyPlansPage() {
           </Link>
         </div>
 
-        {/* Student Card
-        {student && (
-          <div className="max-w-md mx-auto mb-6 border rounded-2xl p-6 shadow-lg bg-white">
-            <h2 className="text-xl font-semibold">{student.fullName}</h2>
-            <p className="text-sm text-gray-500">Email: {student.email}</p>
-            <p className="text-sm text-gray-500">Enrolled: {new Date(student.createdAt).toLocaleDateString()}</p>
-          </div>
-        )} */}
-        
 
         {/* Study Plans */}
         {studyPlans.length === 0 ? (
           <p>No study plans found.</p>
         ) : (
-          <div className="container mx-auto px-4 space-y-6">
+            <div className="container mx-auto px-4 space-y-6">
             {studyPlans.map((plan) => (
+              
+              // <div key={plan.id} className="relative">
               <div key={plan.id} className="border rounded p-4 shadow-sm">
-                <h2 className="font-semibold text-lg mb-2">
-                  Plan created on {new Date(plan.createdAt).toLocaleDateString()}
-                </h2>
-                <ul className="list-disc pl-5 space-y-1">
-                  {plan.tasks.map((t) => (
-                    <li key={t.id}>
-                      {t.title} — {t.courseId} — due{" "}
-                      {new Date(t.dueDate).toLocaleDateString()}
-                    </li>
-                  ))}
-                </ul>
 
-                
-              </div>
+                {/* Study Plan Card (with checkbox + progress) */}
+                <StudyPlanCard
+                  planId={plan.id}
+                  studentName={student?.fullName || "Student"}
+                  createdAt={plan.createdAt.toISOString()}
+                  tasks={plan.tasks.map((t) => ({
+                    id: t.id,
+                    title: t.title,
+                    courseId: String(t.courseId),
+                    dueDate: t.dueDate.toISOString(),
+                    completed: t.completed,
+                  })
+                )}
+                showActions={true}
+                />
+
+      
+
+                {/* Delete Button */}
+              {/* <DeleteStudyPlanButton planId={plan.id} /> */}
+                  </div>
             ))}
           </div>
         )}

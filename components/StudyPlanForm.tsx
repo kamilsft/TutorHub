@@ -25,13 +25,16 @@ export default function StudyPlanForm({ planId, initialTasks, role = "STUDENT" }
   const [tasks, setTasks] = useState<Task[]>(
     (initialTasks ?? []).length > 0
       ? (initialTasks ?? []).map((t) => ({
-          title: t.title,
-          courseId: String(t.courseId),
-          dueDate: new Date(t.dueDate).toISOString().slice(0, 10),
-          completed: t.completed ?? false,
-        }))
+        title: t.title,
+        courseId: String(t.courseId),
+        dueDate: new Date(t.dueDate).toISOString().slice(0, 10),
+        completed: t.completed ?? false,
+      }))
       : [{ title: "", courseId: "", dueDate: "", completed: false }]
   );
+
+  const selectedCourseIds = tasks.map((t) => t.courseId);
+
   const [loading, setLoading] = useState(false);
 
   // FR12/FR13 — load the relevant course list
@@ -69,13 +72,17 @@ export default function StudyPlanForm({ planId, initialTasks, role = "STUDENT" }
     loadCourses();
   }, [planId]);
 
-  const handleTaskChange = (index: number, field: keyof Task, value: string) => {
+  const handleTaskChange = (index: number, field: keyof Task, value: any) => {
+    
     const updated = [...tasks];
     updated[index] = { ...updated[index], [field]: value };
     setTasks(updated);
   };
 
   const addTask = () => setTasks([...tasks, { title: "", courseId: "", dueDate: "" }]);
+  const deleteTask = (index: number) => {
+    setTasks(tasks.filter((_, i) => i !== index));
+  };
 
   const savePlan = async () => {
     // NFR4 — client-side check before hitting the server
@@ -94,22 +101,22 @@ export default function StudyPlanForm({ planId, initialTasks, role = "STUDENT" }
       // FR13 (PUT) — planId tells the server which plan to update
       const body = planId
         ? {
-            planId,
-            tasks: tasks.map((t) => ({
-              title: t.title,
-              courseId: t.courseId,
-              dueDate: t.dueDate,
-              completed: t.completed ?? false,
-            })),
-          }
+          planId,
+          tasks: tasks.map((t) => ({
+            title: t.title,
+            courseId: t.courseId,
+            dueDate: t.dueDate,
+            completed: t.completed ?? false,
+          })),
+        }
         : {
-            tasks: tasks.map((t) => ({
-              title: t.title,
-              courseId: t.courseId,
-              dueDate: t.dueDate,
-              completed: t.completed ?? false,
-            })),
-          };
+          tasks: tasks.map((t) => ({
+            title: t.title,
+            courseId: t.courseId,
+            dueDate: t.dueDate,
+            completed: t.completed ?? false,
+          })),
+        };
 
       const res = await fetch("/api/study-plans", {
         method,
@@ -139,6 +146,8 @@ export default function StudyPlanForm({ planId, initialTasks, role = "STUDENT" }
     <div>
       {tasks.map((t, i) => (
         <div key={i} className="mb-4 border p-2 rounded flex gap-2 items-center">
+
+          
           <input
             placeholder="Task title"
             value={t.title}
@@ -152,7 +161,17 @@ export default function StudyPlanForm({ planId, initialTasks, role = "STUDENT" }
           >
             <option value="">Select course</option>
             {courses.map((c) => (
-              <option key={c.id} value={String(c.id)}>{c.title}</option>
+              // Disable courses already selected in other tasks to prevent duplicates
+              <option
+                key={c.id}
+                value={String(c.id)}
+                disabled={
+                  selectedCourseIds.includes(String(c.id)) &&
+                  String(c.id) !== t.courseId
+                }
+              >
+                {c.title}
+              </option>
             ))}
           </select>
           <input
@@ -161,6 +180,14 @@ export default function StudyPlanForm({ planId, initialTasks, role = "STUDENT" }
             onChange={(e) => handleTaskChange(i, "dueDate", e.target.value)}
             className="border rounded px-2 py-1 flex-1"
           />
+
+          {/* Delete button to remove a task from the plan */}
+          <button
+            onClick={() => deleteTask(i)}
+            className="bg-red-500 text-white px-2 py-1 rounded"
+          >
+            ✕
+          </button>
         </div>
       ))}
       <div className="flex gap-2">

@@ -3,6 +3,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import deleteStudyPlanButton from "./DeleteStudyPlan";
+import DeleteStudyPlanButton from "./DeleteStudyPlan";
 
 type Task = {
   id: number;
@@ -17,6 +19,7 @@ type StudyPlanCardProps = {
   studentName: string;
   createdAt: string;
   tasks: Task[];
+  showActions?: boolean;
 };
 
 export default function StudyPlanCard({ planId, studentName, createdAt, tasks: initialTasks }: StudyPlanCardProps) {
@@ -47,19 +50,61 @@ export default function StudyPlanCard({ planId, studentName, createdAt, tasks: i
   };
 
   return (
-    <div className="group flex flex-col rounded-2xl border border-slate-200/90 bg-white p-6 shadow-md transition hover:shadow-lg">
-      <div className="flex justify-between items-center mb-3">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-900">{studentName}'s Plan</h2>
-          <p className="text-sm text-slate-500">Created on {new Date(createdAt).toLocaleDateString()}</p>
-        </div>
-        <Link
-          href={`/dashboard/tutor/study-plan/${planId}/edit`}
-          className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm hover:bg-emerald-500"
-        >
-          Edit →
-        </Link>
-      </div>
+    // <div className={`group flex flex-col rounded-2xl border p-6 shadow-md transition ${progressPercent === 100 ? "bg-gray-100 opacity-70" : "bg-white"}`}>
+    //   <div className="flex justify-between items-center mb-3">
+    //     <div>
+    //       <h2 className="text-lg font-semibold text-slate-900">{studentName}'s Plan</h2>
+    //       <p className="text-sm text-slate-500">Created on {new Date(createdAt).toLocaleDateString()}</p>
+    //     </div>
+    //     <Link
+    //       href={`/dashboard/tutor/study-plan/${planId}/edit`}
+    //       className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm hover:bg-emerald-500"
+    //     >
+    //       Edit →
+    //     </Link>
+
+    //     <DeleteStudyPlanButton planId={planId} />
+    //     <div>
+
+    //     </div>
+
+    //   </div>
+
+
+    <div
+  className={`group flex flex-col rounded-2xl border p-6 shadow-md transition ${
+    progressPercent === 100 ? "bg-gray-100 opacity-70" : "bg-white"
+  }`}
+>
+  {/* Header */}
+  <div className="flex justify-between items-start mb-4">
+    
+    {/* Left: Title + date */}
+    <div>
+      <h2 className="text-lg font-semibold text-slate-900">
+        {studentName}'s Plan
+      </h2>
+      <p className="text-sm text-slate-500">
+        Created on {new Date(createdAt).toLocaleDateString()}
+      </p>
+    </div>
+
+    {/* Right: Actions */}
+    <div className="flex items-center gap-2">
+      
+      {/* Edit Button */}
+      <Link
+        href={`/dashboard/student/study-plan/${planId}/edit`}
+        className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-emerald-500 transition"
+      >
+        Edit
+      </Link>
+
+      {/* Delete Button */}
+      <DeleteStudyPlanButton planId={planId} />
+      
+    </div>
+  </div>
 
       {/* Progress Bar */}
       <div className="mb-3">
