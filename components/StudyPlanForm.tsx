@@ -161,15 +161,7 @@ export default function StudyPlanForm({ planId, initialTasks, role = "STUDENT" }
           >
             <option value="">Select course</option>
             {courses.map((c) => (
-              // Disable courses already selected in other tasks to prevent duplicates
-              <option
-                key={c.id}
-                value={String(c.id)}
-                {/* disabled={
-                  selectedCourseIds.includes(String(c.id)) &&
-                  String(c.id) !== t.courseId
-                } */}
-              >
+              <option key={c.id} value={String(c.id)}>
                 {c.title}
               </option>
             ))}
