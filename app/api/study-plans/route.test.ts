@@ -148,7 +148,6 @@ describe("/api/study-plans", () => {
     it("returns 403 when TUTOR has no course in common with the student (NFR2)", async () => {
       vi.mocked(verifyToken).mockReturnValue(mockTutorPayload as any);
       prismaMock.studyPlan.findUnique.mockResolvedValue({ id: 5, studentId: "student-1", tasks: [] } as never);
-      // Tutor teaches course 99; student is enrolled in course 1 — no overlap
       prismaMock.course.findMany.mockResolvedValue([{ id: 99, tutorId: "tutor-1" }] as never);
       prismaMock.enrollment.findMany.mockResolvedValue([
         { course: { id: 1 }, enrolledAt: new Date() },
@@ -163,7 +162,6 @@ describe("/api/study-plans", () => {
     it("allows TUTOR to update a student's plan when they share a course (FR13 + NFR2)", async () => {
       vi.mocked(verifyToken).mockReturnValue(mockTutorPayload as any);
       prismaMock.studyPlan.findUnique.mockResolvedValue({ id: 5, studentId: "student-1", tasks: [] } as never);
-      // Shared course: tutor teaches course 1; student is enrolled in course 1
       prismaMock.course.findMany.mockResolvedValue([
         { id: 1, tutorId: "tutor-1", tutor: { id: "tutor-1", fullName: "T", avatar: null } },
       ] as never);

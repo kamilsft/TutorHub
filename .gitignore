@@ -54,3 +54,11 @@ __pycache__/
 
 # Claude Code memory
 .claude/
+
+# Python virtualenv
+.venv/
+venv/
+recommendation-service/.venv/
+
+# Docs
+docs/

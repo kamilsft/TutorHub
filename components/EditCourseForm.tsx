@@ -27,6 +27,7 @@ export default function EditCourseForm({ courseId }: { courseId: number }) {
   const [isPublished, setIsPublished] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -104,6 +105,7 @@ export default function EditCourseForm({ courseId }: { courseId: number }) {
         return;
       }
       setSuccess("Course updated successfully.");
+      router.refresh();
     } catch {
       setError("Failed to update course");
     } finally {
@@ -128,10 +130,43 @@ export default function EditCourseForm({ courseId }: { courseId: number }) {
       }
       setIsPublished(!isPublished);
       setSuccess(isPublished ? "Course archived." : "Course published.");
+      router.refresh();
     } catch {
       setError("Failed to update visibility");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (isPublished) {
+      setError("Archive the course before deleting it.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Delete this archived course permanently? This will also remove its assignments, enrollments, and submissions."
+    );
+    if (!confirmed) return;
+
+    setError(null);
+    setSuccess(null);
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/courses?id=${courseId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || "Failed to delete course");
+        return;
+      }
+      router.push("/dashboard/tutor/courses");
+      router.refresh();
+    } catch {
+      setError("Failed to delete course");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -167,17 +202,28 @@ export default function EditCourseForm({ courseId }: { courseId: number }) {
             {isPublished ? "This course is visible to students" : "This course is hidden (draft)"}
           </span>
         </div>
-        <button
-          onClick={handleTogglePublish}
-          disabled={saving}
-          className={`rounded-xl px-4 py-2 text-xs font-semibold transition disabled:opacity-50 ${
-            isPublished
-              ? "border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
-              : "bg-emerald-600 text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-500"
-          }`}
-        >
-          {isPublished ? "Archive course" : "Publish course"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleTogglePublish}
+            disabled={saving || deleting}
+            className={`rounded-xl px-4 py-2 text-xs font-semibold transition disabled:opacity-50 ${
+              isPublished
+                ? "border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                : "bg-emerald-600 text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-500"
+            }`}
+          >
+            {isPublished ? "Archive course" : "Publish course"}
+          </button>
+          {!isPublished && (
+            <button
+              onClick={handleDelete}
+              disabled={saving || deleting}
+              className="rounded-xl border border-red-300 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+            >
+              {deleting ? "Deleting..." : "Delete course"}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Form card */}
@@ -267,7 +313,7 @@ export default function EditCourseForm({ courseId }: { courseId: number }) {
           </button>
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || deleting}
             className="inline-flex items-center rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-500 disabled:opacity-50"
           >
             {saving ? "Saving..." : "Save changes"}

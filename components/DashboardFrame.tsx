@@ -157,6 +157,10 @@ export default function DashboardFrame({
               {badge}
             </span>
 
+            <p className="mb-6 max-w-[18rem] text-xs leading-relaxed text-slate-500">
+              Structured courses, tutoring support, and progress in one place.
+            </p>
+
             <nav className="flex flex-1 flex-col gap-1" aria-label="Dashboard">
               {items.map((item) => (
                 <Link
@@ -170,13 +174,6 @@ export default function DashboardFrame({
                 </Link>
               ))}
             </nav>
-
-            <div className="mt-8 rounded-xl border border-slate-200/80 bg-gradient-to-br from-slate-900 to-slate-800 p-4 text-white shadow-lg">
-              <p className="text-sm font-semibold">TutorHub</p>
-              <p className="mt-1 text-xs text-slate-300">
-                Structured courses, tutoring support, and progress in one place.
-              </p>
-            </div>
           </div>
         </aside>
 

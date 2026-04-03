@@ -2,7 +2,7 @@
 // FR4 (browse), FR5 (create/update/archive), NFR1, NFR2, NFR4
 
 import { NextResponse } from "next/server";
-import { requireAuth, requireTutor, isAuthError } from "@/lib/api-auth";
+import { requireTutor, isAuthError } from "@/lib/api-auth";
 import * as courseService from "@/lib/services/courseService";
 
 // FR4 - any visitor can browse published courses
@@ -12,7 +12,8 @@ export async function GET(request: Request) {
     const subject = searchParams.get("subject") ?? undefined;
     const courses = await courseService.listPublishedCourses(subject);
     return NextResponse.json(courses);
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.status) return NextResponse.json({ error: err.message }, { status: err.status });
     console.error("GET /api/courses error", err);
     return NextResponse.json({ error: "Failed to fetch courses" }, { status: 500 });
   }

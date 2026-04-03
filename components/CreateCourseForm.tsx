@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 
 // tutorId prop is kept for backward compatibility but is no longer sent to the API
 // the server reads the tutor identity from the JWT cookie (NFR2)
-export default function CreateCourseForm({ tutorId }: { tutorId?: string }) {
+export default function CreateCourseForm({ tutorId: _tutorId }: { tutorId?: string }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
@@ -18,11 +18,13 @@ export default function CreateCourseForm({ tutorId }: { tutorId?: string }) {
   const [level, setLevel] = useState("");
   const [isPublished, setIsPublished] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
 
     // NFR4 — basic client-side check before hitting the server
     if (!title.trim() || !subject.trim()) {
@@ -55,7 +57,15 @@ export default function CreateCourseForm({ tutorId }: { tutorId?: string }) {
         return;
       }
 
-      router.push("/courses");
+      const createdTitle = (data?.title || title).toString().trim();
+      setSuccess(`Course "${createdTitle}" created.`);
+      setTitle("");
+      setSubject("");
+      setDescription("");
+      setPrice("");
+      setLevel("");
+      setIsPublished(true);
+      router.refresh();
     } catch (e) {
       setError("Failed to create course");
     } finally {
@@ -66,6 +76,7 @@ export default function CreateCourseForm({ tutorId }: { tutorId?: string }) {
   return (
     <form onSubmit={handleSubmit} className="max-w-xl mx-auto p-4 bg-white rounded-lg shadow-sm space-y-4">
       {error && <div className="text-sm text-red-600">{error}</div>}
+      {success && <div className="text-sm text-emerald-600">{success}</div>}
 
       <div>
         <label className="block text-sm font-medium mb-1">Title</label>

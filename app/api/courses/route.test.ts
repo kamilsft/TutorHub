@@ -116,7 +116,7 @@ describe("/api/courses", () => {
       const req = makeRequest(
         "POST",
         "http://localhost/api/courses",
-        { title: "Calc", subject: "Math", tutorId: "injected-id" }, // tutorId in body must be ignored
+        { title: "Calc", subject: "Math", tutorId: "injected-id" },
         "tutor-token"
       );
       const res = await POST(req);

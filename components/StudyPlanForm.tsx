@@ -6,192 +6,267 @@
 // enrolled in one of the tutor's courses (enforced server-side via NFR2)
 // FR12 (create), FR13 (update)
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
-type Task = { title: string; courseId: string; dueDate: string; completed?: boolean };
-type Course = { id: string | number; title: string };
-
-type StudyPlanFormProps = {
-  // planId is set when editing an existing plan; absent for new plan creation
-  planId?: number;
-  // initialTasks pre-fills the form when editing
-  initialTasks?: any[];
-  // role is passed in so the form knows which API to call for the course list
-  role?: "STUDENT" | "TUTOR";
+type Task = {
+  title: string;
+  courseId: string;
+  dueDate: string;
+  completed: boolean;
 };
 
-export default function StudyPlanForm({ planId, initialTasks, role = "STUDENT" }: StudyPlanFormProps) {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [tasks, setTasks] = useState<Task[]>(
-    (initialTasks ?? []).length > 0
-      ? (initialTasks ?? []).map((t) => ({
-        title: t.title,
-        courseId: String(t.courseId),
-        dueDate: new Date(t.dueDate).toISOString().slice(0, 10),
-        completed: t.completed ?? false,
-      }))
-      : [{ title: "", courseId: "", dueDate: "", completed: false }]
-  );
+type Course = {
+  id: string;
+  title: string;
+};
 
-  const selectedCourseIds = tasks.map((t) => t.courseId);
+type StudyPlanFormProps = {
+  initialTasks?: Array<{
+    title: string;
+    courseId: string | number;
+    dueDate: string | Date;
+    completed?: boolean;
+  }>;
+  planId?: number;
+  availableCourses?: Course[];
+  onSavedPath?: string;
+  saveButtonLabel?: string;
+};
 
-  const [loading, setLoading] = useState(false);
+const EMPTY_TASK: Task = {
+  title: "",
+  courseId: "",
+  dueDate: "",
+  completed: false,
+};
 
-  // FR12/FR13 — load the relevant course list
-  // For new student plans: GET /api/courses/enrolled (student's enrolled courses)
-  // For existing plans being edited: GET /api/study-plans/{id}/edit-data (handles both roles)
+function toDateInputValue(value: string | Date): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+export default function StudyPlanForm({
+  initialTasks,
+  planId,
+  availableCourses,
+  onSavedPath,
+  saveButtonLabel,
+}: StudyPlanFormProps) {
+  const router = useRouter();
+  const [courses, setCourses] = useState<Course[]>(availableCourses ?? []);
+  const [tasks, setTasks] = useState<Task[]>(() => {
+    if (!initialTasks || initialTasks.length === 0) return [{ ...EMPTY_TASK }];
+    return initialTasks.map((task) => ({
+      title: task.title,
+      courseId: String(task.courseId),
+      dueDate: toDateInputValue(task.dueDate),
+      completed: !!task.completed,
+    }));
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const mergedCourses = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const course of courses) {
+      map.set(String(course.id), course.title);
+    }
+    // Keep course ids referenced in loaded tasks selectable even if not in fetched list
+    for (const task of tasks) {
+      if (task.courseId && !map.has(task.courseId)) {
+        map.set(task.courseId, `Course #${task.courseId}`);
+      }
+    }
+    return Array.from(map.entries()).map(([id, title]) => ({ id, title }));
+  }, [courses, tasks]);
+
   useEffect(() => {
+    if (availableCourses && availableCourses.length > 0) {
+      setCourses(availableCourses);
+      return;
+    }
+
     async function loadCourses() {
       try {
-        let url: string;
-
-        if (planId) {
-          // editing an existing plan — use the role-aware edit-data endpoint
-          // this works for both students and tutors
-          const res = await fetch(`/api/study-plans/${planId}/edit-data`);
-          if (!res.ok) {
-            console.error("Failed to load edit data:", await res.json());
-            return;
-          }
-          const data = await res.json();
-          if (Array.isArray(data.courses)) setCourses(data.courses);
+        const res = await fetch("/api/courses/enrolled");
+        const data = await res.json().catch(() => []);
+        if (!res.ok || !Array.isArray(data)) {
+          setCourses([]);
           return;
         }
-
-        // creating a new plan — students load their own enrolled courses
-        url = "/api/courses/enrolled";
-        const res = await fetch(url);
-        const data = await res.json();
-        if (Array.isArray(data)) setCourses(data);
-        else setCourses([]);
+        setCourses(
+          data.map((course: any) => ({
+            id: String(course.id),
+            title: String(course.title || `Course #${course.id}`),
+          }))
+        );
       } catch (err) {
         console.error("Failed to load courses:", err);
         setCourses([]);
       }
     }
     loadCourses();
-  }, [planId]);
+  }, [availableCourses]);
 
-  const handleTaskChange = (index: number, field: keyof Task, value: any) => {
-    
-    const updated = [...tasks];
-    updated[index] = { ...updated[index], [field]: value };
-    setTasks(updated);
-  };
+  function handleTaskChange(index: number, patch: Partial<Task>) {
+    setTasks((prev) =>
+      prev.map((task, i) => (i === index ? { ...task, ...patch } : task))
+    );
+  }
 
-  const addTask = () => setTasks([...tasks, { title: "", courseId: "", dueDate: "" }]);
-  const deleteTask = (index: number) => {
-    setTasks(tasks.filter((_, i) => i !== index));
-  };
+  function addTask() {
+    setTasks((prev) => [...prev, { ...EMPTY_TASK }]);
+  }
 
-  const savePlan = async () => {
-    // NFR4 — client-side check before hitting the server
-    for (const t of tasks) {
-      if (!t.title || !t.courseId || !t.dueDate) {
-        alert("Please fill all fields for each task");
+  function removeTask(index: number) {
+    setTasks((prev) => {
+      if (prev.length <= 1) return [{ ...EMPTY_TASK }];
+      return prev.filter((_, i) => i !== index);
+    });
+  }
+
+  async function savePlan() {
+    setError(null);
+    setSuccess(null);
+
+    if (tasks.length === 0) {
+      setError("Add at least one task.");
+      return;
+    }
+
+    for (const task of tasks) {
+      if (!task.title.trim() || !task.courseId || !task.dueDate) {
+        setError("Please complete title, course, and due date for every task.");
         return;
       }
     }
 
-    setLoading(true);
+    setSaving(true);
     try {
       const method = planId ? "PUT" : "POST";
-
-      // FR12 (POST) — studentId is NOT sent; server always uses the JWT
-      // FR13 (PUT) — planId tells the server which plan to update
       const body = planId
         ? {
-          planId,
-          tasks: tasks.map((t) => ({
-            title: t.title,
-            courseId: t.courseId,
-            dueDate: t.dueDate,
-            completed: t.completed ?? false,
-          })),
-        }
+            planId,
+            tasks: tasks.map((task) => ({
+              title: task.title.trim(),
+              courseId: task.courseId,
+              dueDate: task.dueDate,
+              completed: !!task.completed,
+            })),
+          }
         : {
-          tasks: tasks.map((t) => ({
-            title: t.title,
-            courseId: t.courseId,
-            dueDate: t.dueDate,
-            completed: t.completed ?? false,
-          })),
-        };
+            tasks: tasks.map((task) => ({
+              title: task.title.trim(),
+              courseId: task.courseId,
+              dueDate: task.dueDate,
+              completed: !!task.completed,
+            })),
+          };
 
       const res = await fetch("/api/study-plans", {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        alert(err.error || "Failed to save");
+        setError(data.error || "Failed to save study plan");
         return;
       }
 
-      alert(planId ? "Study plan updated!" : "Study plan created!");
-      if (!planId) {
-        setTasks([{ title: "", courseId: "", dueDate: "" }]);
+      if (onSavedPath) {
+        router.push(onSavedPath);
+        return;
       }
+
+      setSuccess(planId ? "Study plan updated." : "Study plan created.");
+      if (planId) router.refresh();
+      else setTasks([{ ...EMPTY_TASK }]);
     } catch (err) {
       console.error(err);
-      alert("Error saving study plan");
+      setError("Error saving study plan");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
-  };
+  }
 
   return (
-    <div>
-      {tasks.map((t, i) => (
-        <div key={i} className="mb-4 border p-2 rounded flex gap-2 items-center">
+    <div className="space-y-4">
+      {error && <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+      {success && (
+        <div className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{success}</div>
+      )}
 
-          
+      {tasks.map((task, index) => (
+        <div key={index} className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
           <input
             placeholder="Task title"
-            value={t.title}
-            onChange={(e) => handleTaskChange(i, "title", e.target.value)}
-            className="border rounded px-2 py-1 flex-1"
-          />
-          <select
-            value={t.courseId}
-            onChange={(e) => handleTaskChange(i, "courseId", e.target.value)}
-            className="flex-1 appearance-none rounded-xl border border-slate-300 bg-white px-4 py-2.5 pr-10 text-sm text-slate-900 shadow-sm transition focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100 cursor-pointer"
-          >
-            <option value="">Select course</option>
-            {courses.map((c) => (
-              <option key={c.id} value={String(c.id)}>
-                {c.title}
-              </option>
-            ))}
-          </select>
-          <input
-            type="date"
-            value={t.dueDate}
-            onChange={(e) => handleTaskChange(i, "dueDate", e.target.value)}
-            className="border rounded px-2 py-1 flex-1"
+            value={task.title}
+            onChange={(e) => handleTaskChange(index, { title: e.target.value })}
+            className="w-full rounded border px-2 py-1"
           />
 
-          {/* Delete button to remove a task from the plan */}
-          <button
-            onClick={() => deleteTask(i)}
-            className="bg-red-500 text-white px-2 py-1 rounded"
-          >
-            ✕
-          </button>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <select
+              value={task.courseId}
+              onChange={(e) => handleTaskChange(index, { courseId: e.target.value })}
+              className="w-full rounded border bg-white px-2 py-1"
+            >
+              <option value="">Select course</option>
+              {mergedCourses.map((course) => (
+                <option key={course.id} value={course.id}>
+                  {course.title}
+                </option>
+              ))}
+            </select>
+
+            <input
+              type="date"
+              value={task.dueDate}
+              onChange={(e) => handleTaskChange(index, { dueDate: e.target.value })}
+              className="w-full rounded border px-2 py-1"
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={task.completed}
+                onChange={(e) => handleTaskChange(index, { completed: e.target.checked })}
+              />
+              Completed
+            </label>
+
+            <button
+              type="button"
+              onClick={() => removeTask(index)}
+              className="rounded border border-red-200 px-2 py-1 text-sm text-red-600 hover:bg-red-50"
+            >
+              Remove
+            </button>
+          </div>
         </div>
       ))}
+
       <div className="flex gap-2">
-        <button onClick={addTask} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50">
+        <button
+          type="button"
+          onClick={addTask}
+          className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+        >
           + Add Task
         </button>
         <button
+          type="button"
           onClick={savePlan}
-          disabled={loading}
+          disabled={saving}
           className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? "Saving…" : "Save Plan"}
+          {saving ? "Saving…" : saveButtonLabel || (planId ? "Update plan" : "Save Plan")}
         </button>
       </div>
     </div>

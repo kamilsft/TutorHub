@@ -5,7 +5,6 @@ import { verifyToken } from "@/lib/jwt";
 import {
   requireAuth,
   requireAuthenticatedUser,
-  requireRole,
   requireTutor,
   requireStudent,
   requireOwnership,
@@ -66,8 +65,6 @@ describe("api-auth helpers", () => {
     expect(isAuthError(result)).toBe(false);
   });
 
-  // NFR1: token present but verifyToken returns null (expired/tampered) → 401 "Invalid token"
-  // This covers the branch at api-auth.ts lines 30-35 that was previously uncovered
   it("requireAuth returns 401 with 'Invalid token' when token fails verification (NFR1)", async () => {
     vi.mocked(verifyToken).mockReturnValue(null);
     const result = requireAuth(makeReq("bad-token"));
@@ -77,8 +74,6 @@ describe("api-auth helpers", () => {
     expect(body.error).toBe("Invalid token");
   });
 
-  // NFR1: requireAuthenticatedUser is an alias for requireAuth — both return same result
-  // Covers the alias function at api-auth.ts lines 40-42
   it("requireAuthenticatedUser delegates to requireAuth and returns payload (NFR1)", () => {
     vi.mocked(verifyToken).mockReturnValue(tutorPayload as any);
     const result = requireAuthenticatedUser(makeReq("good-token"));
@@ -86,8 +81,6 @@ describe("api-auth helpers", () => {
     expect((result as any).sub).toBe("t1");
   });
 
-  // NFR1: getTokenFromRequest reads from cookie when no Authorization header is present
-  // Ensures the cookie-extraction branch is exercised
   it("requireAuth accepts token from cookie (NFR1)", () => {
     vi.mocked(verifyToken).mockReturnValue(studentPayload as any);
     const reqWithCookie = new Request("http://localhost/test", {
@@ -98,7 +91,6 @@ describe("api-auth helpers", () => {
     expect((result as any).sub).toBe("s1");
   });
 
-  // NFR2: requireStudent returns payload for a STUDENT token
   it("requireStudent returns payload for STUDENT (NFR2)", () => {
     vi.mocked(verifyToken).mockReturnValue(studentPayload as any);
     const result = requireStudent(makeReq("student-token"));

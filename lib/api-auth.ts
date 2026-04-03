@@ -17,21 +17,22 @@ export function getTokenFromRequest(request: Request): string | null {
   return null;
 }
 
+function jsonAuthError(message: string, status: number): Response {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 // NFR1 - returns the verified JWT payload or a 401 Response if not logged in
 export function requireAuth(request: Request): JwtPayload | Response {
   const token = getTokenFromRequest(request);
   if (!token) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonAuthError("Unauthorized", 401);
   }
   const payload = verifyToken(token);
   if (!payload) {
-    return new Response(JSON.stringify({ error: "Invalid token" }), {
-      status: 401,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonAuthError("Invalid token", 401);
   }
   return payload;
 }
@@ -65,8 +66,6 @@ export function requireStudent(request: Request): JwtPayload | Response {
 }
 
 // NFR2 - after verifying auth, check that the logged-in user owns the resource
-// e.g. requireOwnership(payload, course.tutorId) makes sure a tutor owns their course
-// returns 403 if there is a mismatch, or the payload if it all checks out
 export function requireOwnership(
   payload: JwtPayload,
   ownerId: string

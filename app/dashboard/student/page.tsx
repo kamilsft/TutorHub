@@ -19,6 +19,7 @@ function RecommendedTutorsSection() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchRecommendations() {
@@ -35,7 +36,17 @@ function RecommendedTutorsSection() {
           return;
         }
 
-        setRecommendations(data.recommendations ?? []);
+        const recs = Array.isArray(data?.recommendations) ? data.recommendations : [];
+        setRecommendations(recs);
+        if (recs.length === 0) {
+          setEmptyMessage(
+            typeof data?.message === "string"
+              ? data.message
+              : "No recommendations available right now."
+          );
+        } else {
+          setEmptyMessage(null);
+        }
       } catch {
         setError("Recommendation service unavailable");
       } finally {
@@ -60,7 +71,7 @@ function RecommendedTutorsSection() {
       <div className="col-span-full rounded-2xl border border-slate-200/90 bg-white p-6 shadow-md shadow-slate-200/30">
         <h2 className="text-lg font-semibold text-slate-900">Recommended Tutors</h2>
         <p className="mt-2 text-sm text-slate-400">
-          {error ?? "No recommendations yet. Enroll in a course to get started."}
+          {error ?? emptyMessage ?? "No recommendations yet. Enroll in a course to get started."}
         </p>
       </div>
     );

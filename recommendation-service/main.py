@@ -60,6 +60,8 @@ def health_check():
 
 @app.get("/recommendations/{student_id}")
 def get_recommendations(student_id: str):
+    conn = None
+    cursor = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -75,12 +77,13 @@ def get_recommendations(student_id: str):
         if not student:
             raise HTTPException(status_code=404, detail=f"Student with ID {student_id} not found")
 
-        # Step 2: Get the subjects the student is enrolled in
+        # Step 2: Get active enrollments and their subjects
         cursor.execute("""
-            SELECT DISTINCT c.subject, e."courseId"
+            SELECT DISTINCT c.subject, e."courseId", c."tutorId"
             FROM "Enrollment" e
             JOIN "Course" c ON c.id = e."courseId"
             WHERE e."studentId" = %s
+              AND e.status = 'ACTIVE'
         """, (student_id,))
         enrollments = cursor.fetchall()
 
@@ -94,40 +97,70 @@ def get_recommendations(student_id: str):
 
         enrolled_course_ids = [row["courseId"] for row in enrollments]
         enrolled_subjects = list(set([row["subject"] for row in enrollments]))
+        enrolled_tutor_ids = list(set([row["tutorId"] for row in enrollments]))
 
-        # Step 3: Find tutors who teach those same subjects
-        cursor.execute("""
-            SELECT 
-                u.id AS "tutorId",
-                u."fullName" AS "tutorName",
-                u.email AS "tutorEmail",
-                c.id AS "courseId",
-                c.title AS "courseTitle",
-                c.subject AS "courseSubject",
-                c.description AS "courseDescription",
-                c.level AS "courseLevel",
-                c.price AS "coursePrice",
-                c."averageRating" AS "averageRating",
-                COUNT(e2.id) AS "totalStudents"
-            FROM "User" u
-            JOIN "Course" c ON c."tutorId" = u.id
-            LEFT JOIN "Enrollment" e2 ON e2."courseId" = c.id
-            WHERE c.subject = ANY(%s)
-            AND c."isPublished" = true
-            AND c.id != ALL(%s)
-            AND u.role = 'TUTOR'
-            AND u.id NOT IN (
-                SELECT DISTINCT c2."tutorId"
-                FROM "Enrollment" e3
-                JOIN "Course" c2 ON c2.id = e3."courseId"
-                WHERE e3."studentId" = %s
-            )
-            GROUP BY u.id, u."fullName", u.email, c.id, c.title, c.subject,
-                     c.description, c.level, c.price, c."averageRating"
-            ORDER BY c."averageRating" DESC, "totalStudents" DESC
-        """, (enrolled_subjects, enrolled_course_ids, student_id))
+        def fetch_recommendation_rows(restrict_subjects: bool, exclude_seen_tutors: bool):
+            clauses = [
+                "c.\"isPublished\" = true",
+                "u.role = 'TUTOR'",
+            ]
+            params = []
 
-        rows = cursor.fetchall()
+            if restrict_subjects and enrolled_subjects:
+                clauses.append("c.subject = ANY(%s)")
+                params.append(enrolled_subjects)
+
+            if enrolled_course_ids:
+                clauses.append("c.id != ALL(%s)")
+                params.append(enrolled_course_ids)
+
+            if exclude_seen_tutors and enrolled_tutor_ids:
+                clauses.append("u.id != ALL(%s)")
+                params.append(enrolled_tutor_ids)
+
+            where_sql = " AND ".join(clauses)
+
+            query = f"""
+                SELECT
+                    u.id AS "tutorId",
+                    u."fullName" AS "tutorName",
+                    u.email AS "tutorEmail",
+                    c.id AS "courseId",
+                    c.title AS "courseTitle",
+                    c.subject AS "courseSubject",
+                    c.description AS "courseDescription",
+                    c.level AS "courseLevel",
+                    c.price AS "coursePrice",
+                    c."averageRating" AS "averageRating",
+                    COUNT(e2.id) AS "totalStudents"
+                FROM "User" u
+                JOIN "Course" c ON c."tutorId" = u.id
+                LEFT JOIN "Enrollment" e2
+                       ON e2."courseId" = c.id
+                      AND e2.status = 'ACTIVE'
+                WHERE {where_sql}
+                GROUP BY u.id, u."fullName", u.email, c.id, c.title, c.subject,
+                         c.description, c.level, c.price, c."averageRating"
+                ORDER BY c."averageRating" DESC NULLS LAST, "totalStudents" DESC, c.id DESC
+                LIMIT 12
+            """
+            cursor.execute(query, tuple(params))
+            return cursor.fetchall()
+
+        # Tiered strategy:
+        # 1) Same subjects, new tutors
+        # 2) Same subjects, any tutor
+        # 3) Global published courses not yet enrolled
+        rows = fetch_recommendation_rows(restrict_subjects=True, exclude_seen_tutors=True)
+        strategy = "same_subject_new_tutor"
+
+        if not rows:
+            rows = fetch_recommendation_rows(restrict_subjects=True, exclude_seen_tutors=False)
+            strategy = "same_subject_any_tutor"
+
+        if not rows:
+            rows = fetch_recommendation_rows(restrict_subjects=False, exclude_seen_tutors=False)
+            strategy = "global_published"
 
         recommendations = [
             {
@@ -146,21 +179,29 @@ def get_recommendations(student_id: str):
             for row in rows
         ]
 
-        cursor.close()
-        conn.close()
-
-        return {
+        response = {
             "studentId": student_id,
             "studentName": student["fullName"],
             "enrolledCourseCount": len(enrolled_course_ids),
             "recommendations": recommendations,
-            "totalRecommendations": len(recommendations)
+            "totalRecommendations": len(recommendations),
+            "strategy": strategy,
         }
+
+        if len(recommendations) == 0:
+            response["message"] = "No additional published courses are available right now."
+
+        return response
 
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 # ----------------------------

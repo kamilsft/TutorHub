@@ -10,6 +10,18 @@ export default async function CoursePage({ params }: Props) {
   const id = Number(params.id);
   if (Number.isNaN(id)) return <div className="p-6">Invalid course id</div>;
 
+  const hdrs = headers();
+  const authHeader = hdrs.get("authorization") || "";
+  let token: string | null = null;
+  if (authHeader.startsWith("Bearer ")) token = authHeader.slice(7);
+  else {
+    const cookie = hdrs.get("cookie") || "";
+    const m = /authToken=([^;]+)/.exec(cookie);
+    if (m) token = decodeURIComponent(m[1]);
+  }
+
+  const viewer = token ? verifyToken(token) : null;
+
   const course = await prisma.course.findUnique({
     where: { id },
     include: {
@@ -20,30 +32,23 @@ export default async function CoursePage({ params }: Props) {
 
   if (!course) return <div className="p-6">Course not found.</div>;
 
+  const canViewUnpublished =
+    viewer?.role === "TUTOR" && viewer.sub === course.tutorId;
+  if (!course.isPublished && !canViewUnpublished) {
+    return <div className="p-6">Course not found.</div>;
+  }
+
   const enrolledCount = course.enrollments?.length ?? 0;
 
   // detect current user (if any) and whether they are enrolled
   let initiallyJoined = false;
   try {
-    const hdrs = headers();
-    const authHeader = hdrs.get("authorization") || "";
-    let token: string | null = null;
-    if (authHeader.startsWith("Bearer ")) token = authHeader.slice(7);
-    else {
-      const cookie = hdrs.get("cookie") || "";
-      const m = /authToken=([^;]+)/.exec(cookie);
-      if (m) token = decodeURIComponent(m[1]);
-    }
-
-    if (token) {
-      const payload = verifyToken(token);
-      if (payload && payload.role === "STUDENT") {
-        const studentId = payload.sub;
-        const existing = await prisma.enrollment.findUnique({
-          where: { studentId_courseId: { studentId, courseId: id } as any },
-        });
-        if (existing && existing.status === "ACTIVE") initiallyJoined = true;
-      }
+    if (viewer?.role === "STUDENT") {
+      const studentId = viewer.sub;
+      const existing = await prisma.enrollment.findUnique({
+        where: { studentId_courseId: { studentId, courseId: id } as any },
+      });
+      if (existing && existing.status === "ACTIVE") initiallyJoined = true;
     }
   } catch (e) {
     // ignore - treat as unauthenticated
