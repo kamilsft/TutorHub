@@ -8,6 +8,11 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import React from "react";
 import StudyPlanForm from "./StudyPlanForm";
 
+const mockPush = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mockPush, refresh: vi.fn() }),
+}));
+
 describe("StudyPlanForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -56,39 +61,43 @@ describe("StudyPlanForm", () => {
     expect((titleInputs[1] as HTMLInputElement).value).toBe("Do exercises");
   });
 
-  // NFR4: saving with an incomplete task (missing title) shows an alert and does not call the API
-  it("alerts and does not call API when a task is missing its title (NFR4)", async () => {
-    vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => [] } as any);
-    render(<StudyPlanForm />);
+  // NFR4: saving with an incomplete task (missing title) shows an error and does not call the API
+  it("shows error and does not call save API when a task is missing its title (NFR4)", async () => {
+    render(<StudyPlanForm availableCourses={[{ id: "1", title: "Maths" }]} />);
 
     // Leave task title empty, click Save Plan
-    const saveBtn = screen.getByRole("button", { name: /save plan/i });
-    fireEvent.click(saveBtn);
+    fireEvent.click(screen.getByRole("button", { name: /save plan/i }));
 
-    expect(alert).toHaveBeenCalledWith("Please fill all fields for each task");
-    expect(fetch).toHaveBeenCalledTimes(1); // only the course-loading fetch, not the save
+    await waitFor(() => {
+      expect(
+        screen.getByText(/please complete title, course, and due date/i)
+      ).toBeInTheDocument();
+    });
+
+    // No save fetch call should have been made
+    const saveCalls = vi.mocked(fetch).mock.calls.filter(([, opts]: any) =>
+      opts?.method === "POST" || opts?.method === "PUT"
+    );
+    expect(saveCalls).toHaveLength(0);
   });
 
   // FR12: a new plan (no planId) is submitted via POST /api/study-plans
   // The body must NOT include studentId — server reads it from the JWT (NFR2)
   it("POSTs to /api/study-plans without studentId when creating a new plan (FR12 + NFR2)", async () => {
-    // First fetch: enrolled courses (returns one course)
-    vi.mocked(fetch)
-      .mockResolvedValueOnce({ ok: true, json: async () => [{ id: 1, title: "Maths" }] } as any)
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 10, tasks: [] }) } as any);
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 10, tasks: [] }),
+    } as any);
 
-    render(<StudyPlanForm />);
+    // Pass availableCourses directly so no fetch needed for course loading
+    render(<StudyPlanForm availableCourses={[{ id: "1", title: "Maths" }]} />);
 
-    // Wait for courses to load
     await waitFor(() => screen.getByRole("option", { name: "Maths" }));
 
-    // Fill in the task
     fireEvent.change(screen.getByPlaceholderText("Task title"), {
       target: { value: "Study chapter 1" },
     });
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "1" } });
-    fireEvent.change(screen.getByRole("textbox", { hidden: true }), { target: {} }); // date handled below
-    // Use querySelector for date input (type="date")
     const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
     fireEvent.change(dateInput, { target: { value: "2026-06-01" } });
 
@@ -108,20 +117,26 @@ describe("StudyPlanForm", () => {
 
   // FR13: editing an existing plan (planId provided) uses PUT instead of POST
   it("PUTs to /api/study-plans when editing an existing plan (FR13)", async () => {
-    vi.mocked(fetch)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ courses: [{ id: 1, title: "Maths" }] }),
-      } as any)
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 5, tasks: [] }) } as any);
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 5, tasks: [] }),
+    } as any);
 
     const initialTasks = [
       { title: "Read chapter 1", courseId: 1, dueDate: "2026-06-01T00:00:00.000Z", completed: false },
     ];
-    render(<StudyPlanForm planId={5} initialTasks={initialTasks} />);
+    // Pass availableCourses directly so no fetch needed for course loading
+    render(
+      <StudyPlanForm
+        planId={5}
+        initialTasks={initialTasks}
+        availableCourses={[{ id: "1", title: "Maths" }]}
+      />
+    );
 
     await waitFor(() => screen.getByRole("option", { name: "Maths" }));
-    fireEvent.click(screen.getByRole("button", { name: /save plan/i }));
+    // When planId is set, the default button label is "Update plan"
+    fireEvent.click(screen.getByRole("button", { name: /update plan/i }));
 
     await waitFor(() => {
       const calls = vi.mocked(fetch).mock.calls;
@@ -131,6 +146,41 @@ describe("StudyPlanForm", () => {
       expect(putCall).toBeDefined();
       const body = JSON.parse((putCall![1] as RequestInit).body as string);
       expect(body.planId).toBe(5);
+    });
+  });
+
+  // FR12/13: copy-plan — saveButtonLabel prop is rendered on the save button
+  it("renders custom saveButtonLabel on the save button (copy-plan flow)", () => {
+    vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => [] } as any);
+    render(<StudyPlanForm saveButtonLabel="Save copied plan" />);
+    expect(screen.getByRole("button", { name: /save copied plan/i })).toBeInTheDocument();
+  });
+
+  // FR12/13: copy-plan — initialTasks pre-fill the form (simulates ?copyFrom= flow)
+  it("pre-fills tasks from initialTasks when copying a plan (FR12/13)", () => {
+    vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => [] } as any);
+    const copiedTasks = [
+      { title: "Copied task 1", courseId: 2, dueDate: "2026-07-01T00:00:00.000Z", completed: false },
+      { title: "Copied task 2", courseId: 2, dueDate: "2026-07-08T00:00:00.000Z", completed: true },
+    ];
+    render(<StudyPlanForm initialTasks={copiedTasks} saveButtonLabel="Save copied plan" />);
+    const titleInputs = screen.getAllByPlaceholderText("Task title");
+    expect(titleInputs).toHaveLength(2);
+    expect((titleInputs[0] as HTMLInputElement).value).toBe("Copied task 1");
+    expect((titleInputs[1] as HTMLInputElement).value).toBe("Copied task 2");
+  });
+
+  // FR12/13: availableCourses prop — courses passed in are shown in the dropdown
+  it("renders availableCourses in the course dropdown (FR12/13)", async () => {
+    vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => [] } as any);
+    const courses = [
+      { id: "3", title: "Physics 101" },
+      { id: "4", title: "Chemistry 202" },
+    ];
+    render(<StudyPlanForm availableCourses={courses} />);
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "Physics 101" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "Chemistry 202" })).toBeInTheDocument();
     });
   });
 

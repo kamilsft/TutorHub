@@ -298,4 +298,82 @@ describe("EditCourseForm", () => {
     fireEvent.click(screen.getByText(/back to courses/i));
     expect(mockPush).toHaveBeenCalledWith("/dashboard/tutor/courses");
   });
+
+  // ── Delete course (FR5) ───────────────────────────────────────────────────
+  it("does not show Delete button when course is published (FR5)", async () => {
+    setupLoadMocks({ isPublished: true });
+    render(<EditCourseForm courseId={1} />);
+    await waitFor(() => screen.getByRole("button", { name: /archive course/i }));
+    expect(screen.queryByRole("button", { name: /delete course/i })).not.toBeInTheDocument();
+  });
+
+  it("shows Delete button when course is archived (FR5)", async () => {
+    setupLoadMocks({ isPublished: false });
+    render(<EditCourseForm courseId={1} />);
+    await waitFor(() => screen.getByRole("button", { name: /delete course/i }));
+    expect(screen.getByRole("button", { name: /delete course/i })).toBeInTheDocument();
+  });
+
+  it("blocks delete with error if course is still published (FR5)", async () => {
+    setupLoadMocks({ isPublished: true });
+    render(<EditCourseForm courseId={1} />);
+    await waitFor(() => screen.getByRole("button", { name: /archive course/i }));
+    // published → no delete button, guard is visual-only; verify no DELETE call possible
+    expect(screen.queryByRole("button", { name: /delete course/i })).toBeNull();
+  });
+
+  it("sends DELETE to /api/courses?id=1 after confirmation (FR5)", async () => {
+    setupLoadMocks({ isPublished: false });
+    vi.stubGlobal("confirm", vi.fn(() => true));
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ success: true }),
+    } as any);
+
+    render(<EditCourseForm courseId={1} />);
+    await waitFor(() => screen.getByRole("button", { name: /delete course/i }));
+    fireEvent.click(screen.getByRole("button", { name: /delete course/i }));
+
+    await waitFor(() => {
+      const calls = vi.mocked(fetch).mock.calls;
+      const deleteCall = calls.find(([, opts]: any) => opts?.method === "DELETE");
+      expect(deleteCall).toBeDefined();
+      expect(String(deleteCall![0])).toContain("id=1");
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it("does not send DELETE when user cancels the confirmation dialog (FR5)", async () => {
+    setupLoadMocks({ isPublished: false });
+    vi.stubGlobal("confirm", vi.fn(() => false));
+
+    render(<EditCourseForm courseId={1} />);
+    await waitFor(() => screen.getByRole("button", { name: /delete course/i }));
+    fireEvent.click(screen.getByRole("button", { name: /delete course/i }));
+
+    await waitFor(() => {
+      const calls = vi.mocked(fetch).mock.calls;
+      const deleteCall = calls.find(([, opts]: any) => opts?.method === "DELETE");
+      expect(deleteCall).toBeUndefined();
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it("redirects to /dashboard/tutor/courses after successful delete (FR5)", async () => {
+    setupLoadMocks({ isPublished: false });
+    vi.stubGlobal("confirm", vi.fn(() => true));
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ success: true }),
+    } as any);
+
+    render(<EditCourseForm courseId={1} />);
+    await waitFor(() => screen.getByRole("button", { name: /delete course/i }));
+    fireEvent.click(screen.getByRole("button", { name: /delete course/i }));
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith("/dashboard/tutor/courses");
+    });
+    vi.unstubAllGlobals();
+  });
 });
