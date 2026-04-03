@@ -9,13 +9,19 @@ import * as studyPlanService from "@/lib/services/studyPlanService";
 // FR13 + NFR1 + NFR2 - return the logged-in student's own study plans
 // studentId query param is ignored — identity always comes from the JWT
 export async function GET(req: Request) {
-  // NFR1 - must be logged in as a STUDENT
-  const auth = requireStudent(req);
-  if (isAuthError(auth)) return auth;
+  try {
+    // NFR1 - must be logged in as a STUDENT
+    const auth = requireStudent(req);
+    if (isAuthError(auth)) return auth;
 
-  // NFR2 - auth.sub is the verified student ID, not something the client can fake
-  const plans = await studyPlanService.getStudentPlans(auth.sub);
-  return NextResponse.json(plans);
+    // NFR2 - auth.sub is the verified student ID, not something the client can fake
+    const plans = await studyPlanService.getStudentPlans(auth.sub);
+    return NextResponse.json(plans);
+  } catch (err: any) {
+    if (err?.status) return NextResponse.json({ error: err.message }, { status: err.status });
+    console.error("GET /api/study-plans error", err);
+    return NextResponse.json({ error: "Failed to fetch study plans" }, { status: 500 });
+  }
 }
 
 // FR12 + NFR1 + NFR2 + NFR4 - create a study plan for the logged-in student
