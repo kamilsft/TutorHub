@@ -1,5 +1,5 @@
 // lib/services/submissionService.test.ts
-// Unit tests for submissionService (FR8, FR10, NFR2, NFR4)
+// Unit tests for submissionService (FR8, FR9, NFR2, NFR4)
 // Layer: Service (business logic) — repository layer is mocked; no real DB touched
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -116,7 +116,7 @@ describe("submissionService", () => {
   });
 
   // ── reviewSubmission ──────────────────────────────────────────────────────
-  describe("reviewSubmission (FR10 + NFR2 + NFR4)", () => {
+  describe("reviewSubmission (FR9 + NFR2 + NFR4)", () => {
     // NFR4: grade must be 0–100; values outside this range are meaningless and rejected
     // (tested here with a clearly out-of-range value)
     it("throws 400 when grade is out of range (NFR4)", async () => {
@@ -142,7 +142,7 @@ describe("submissionService", () => {
         .rejects.toMatchObject({ status: 403 });
     });
 
-    // FR10 happy path: owning tutor provides a valid grade and feedback; both are persisted
+    // FR9 happy path: owning tutor provides a valid grade and feedback; both are persisted
     it("saves grade and feedback when tutor owns the course (FR9)", async () => {
       vi.mocked(submissionRepo.findSubmissionWithCourse).mockResolvedValue({
         id: 1,

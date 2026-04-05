@@ -18,14 +18,14 @@ client = TestClient(app)
 # ── Health and root ───────────────────────────────────────────────────────────
 
 def test_root_returns_running_message():
-    """FR11 / sanity check — service is alive"""
+    """FR15 / sanity check — service is alive"""
     response = client.get("/")
     assert response.status_code == 200
     assert "running" in response.json()["message"].lower()
 
 
 def test_health_check_success():
-    """FR11 — health endpoint reports healthy when DB connects"""
+    """FR15 — health endpoint reports healthy when DB connects"""
     with patch("main.get_db_connection") as mock_conn:
         mock_conn.return_value = MagicMock()
         response = client.get("/health")
@@ -51,7 +51,7 @@ def _make_cursor(rows: list, fetchone_row=None):
 
 
 def test_recommendations_student_not_found_returns_404():
-    """FR11 — unknown student ID returns 404"""
+    """FR15 — unknown student ID returns 404"""
     with patch("main.get_db_connection") as mock_conn:
         cursor = _make_cursor([], fetchone_row=None)  # student lookup returns None
         conn = MagicMock()
@@ -64,7 +64,7 @@ def test_recommendations_student_not_found_returns_404():
 
 
 def test_recommendations_no_enrollments_returns_empty_list():
-    """FR11 — student exists but has no enrollments: returns empty recommendations"""
+    """FR15 — student exists but has no enrollments: returns empty recommendations"""
     with patch("main.get_db_connection") as mock_conn:
         cursor = MagicMock()
         # First call: student lookup succeeds
@@ -84,7 +84,7 @@ def test_recommendations_no_enrollments_returns_empty_list():
 
 
 def test_recommendations_returns_tutors_for_enrolled_subjects():
-    """FR11 — student enrolled in Maths gets Maths tutors they aren't already with"""
+    """FR15 — student enrolled in Maths gets Maths tutors they aren't already with"""
     enrollment_rows = [{"subject": "Maths", "courseId": 10}]
     tutor_rows = [
         {
@@ -132,7 +132,7 @@ def test_recommendations_db_error_returns_500():
 # ── /tutors ───────────────────────────────────────────────────────────────────
 
 def test_get_all_tutors_returns_list():
-    """FR11 — fallback tutor list returns all tutors"""
+    """FR15 — fallback tutor list returns all tutors"""
     tutor_rows = [
         {
             "tutorId": "t1",
@@ -166,7 +166,7 @@ def test_get_all_tutors_db_error_returns_500():
 # ── /students/{student_id}/courses ───────────────────────────────────────────
 
 def test_get_student_courses_student_not_found():
-    """FR11 — unknown student returns 404 from course endpoint"""
+    """FR15 — unknown student returns 404 from course endpoint"""
     with patch("main.get_db_connection") as mock_conn:
         cursor = _make_cursor([], fetchone_row=None)
         conn = MagicMock()
@@ -179,7 +179,7 @@ def test_get_student_courses_student_not_found():
 
 
 def test_get_student_courses_returns_enrolled_courses():
-    """FR11 — enrolled student sees their courses"""
+    """FR15 — enrolled student sees their courses"""
     course_rows = [
         {
             "courseId": 10,

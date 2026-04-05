@@ -10,7 +10,16 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "seed:admin": "node ./scripts/seed-admin.mjs"
+    "seed:admin": "node ./scripts/seed-admin.mjs",
+    "test:unit": "vitest run lib/",
+    "test:route": "vitest run app/api/",
+    "test:integration": "vitest run tests/integration/",
+    "test:component": "vitest run components/",
+    "test:contracts": "vitest run tests/contracts/",
+    "test:smoke:perf": "vitest run tests/performance/",
+    "test:smoke:security": "vitest run tests/security/",
+    "test:python": "cd recommendation-service && python -m pytest test_main.py -v",
+    "seed:test-data": "node ./scripts/seed-test-data.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.1",

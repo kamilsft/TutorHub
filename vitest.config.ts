@@ -1,16 +1,17 @@
 // vitest.config.ts
 // Test runner configuration for TutorHub
-// Sets up path aliases to match tsconfig so @/lib/... imports resolve correctly in tests
+// Uses @vitejs/plugin-react; forces NODE_ENV to 'development' so act() works in jsdom tests
 // Node environment is the default; component tests opt-in to jsdom via @vitest-environment jsdom
 
 import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
 import path from "path";
 
 export default defineConfig({
-  esbuild: {
-    // Use the React 17+ automatic JSX transform so components don't need
-    // `import React from "react"` — matches how Next.js compiles them
-    jsx: "automatic",
+  plugins: [react()],
+  // Override NODE_ENV so React loads its development build (which includes act() support)
+  define: {
+    "process.env.NODE_ENV": JSON.stringify("development"),
   },
   test: {
     environment: "node",
@@ -19,6 +20,26 @@ export default defineConfig({
     isolate: true,
     // Global setup loads @testing-library/jest-dom matchers for component tests
     setupFiles: ["./tests/setup.ts"],
+    coverage: {
+      provider: "v8",
+      exclude: [
+        // Infrastructure — not testable with Vitest
+        "lib/prisma.ts",
+        "middleware.ts",
+        // Seed/CLI scripts
+        "scripts/**",
+        // Next.js page components and layouts (not business logic)
+        "app/**/page.tsx",
+        "app/**/layout.tsx",
+        "app/globals.css",
+        // Test support files — fixtures are data, not logic
+        "tests/fixtures/**",
+        "tests/setup.ts",
+        // Config files
+        "*.config.*",
+        "next-env.d.ts",
+      ],
+    },
   },
   resolve: {
     alias: {

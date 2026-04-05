@@ -1,6 +1,6 @@
 // tests/integration/submissions.integration.test.ts
 // Integration tests for assignment submissions and tutor review
-// FR8 (submit work), FR10 (review/grade), NFR1, NFR2, NFR4
+// FR8 (submit work), FR9 (review/grade), NFR1, NFR2, NFR4
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -27,7 +27,7 @@ function req(method: string, url: string, body?: object, payload?: typeof studen
   return new Request(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
 }
 
-describe("Submissions integration (FR8 + FR10 + NFR1 + NFR2)", () => {
+describe("Submissions integration (FR8 + FR9 + NFR1 + NFR2)", () => {
   beforeEach(() => vi.clearAllMocks());
 
   // ── GET submissions ───────────────────────────────────────────────────────
@@ -145,11 +145,21 @@ describe("Submissions integration (FR8 + FR10 + NFR1 + NFR2)", () => {
       }, student));
       expect(res.status).toBe(400);
     });
+
+    it("returns 404 when assignment does not exist (NFR4)", async () => {
+      vi.mocked(verifyToken).mockReturnValue(student as any);
+      prismaMock.assignment.findUnique.mockResolvedValue(null);
+
+      const res = await POST(req("POST", "http://localhost/api/submissions", {
+        assignmentId: 999, content: "My answer",
+      }, student));
+      expect(res.status).toBe(404);
+    });
   });
 
   // ── PATCH review (FR9) ───────────────────────────────────────────────────
   describe("PATCH /api/submissions/[id]/review", () => {
-    it("tutor grades a submission they own (FR10 + NFR2)", async () => {
+    it("tutor grades a submission they own (FR9 + NFR2)", async () => {
       vi.mocked(verifyToken).mockReturnValue(tutor as any);
       prismaMock.submission.findUnique.mockResolvedValue({
         id: 1,
@@ -196,6 +206,26 @@ describe("Submissions integration (FR8 + FR10 + NFR1 + NFR2)", () => {
         { params: { id: "1" } }
       );
       expect(res.status).toBe(400);
+    });
+
+    it("returns 404 when submission does not exist (NFR4)", async () => {
+      vi.mocked(verifyToken).mockReturnValue(tutor as any);
+      prismaMock.submission.findUnique.mockResolvedValue(null);
+
+      const res = await review(
+        req("PATCH", "http://localhost/api/submissions/999/review", { grade: 80 }, tutor),
+        { params: { id: "999" } }
+      );
+      expect(res.status).toBe(404);
+    });
+
+    it("returns 401 when unauthenticated (NFR1)", async () => {
+      vi.mocked(verifyToken).mockReturnValue(null);
+      const res = await review(
+        new Request("http://localhost/api/submissions/1/review", { method: "PATCH" }),
+        { params: { id: "1" } }
+      );
+      expect(res.status).toBe(401);
     });
   });
 });

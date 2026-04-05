@@ -1,12 +1,12 @@
 // app/api/enrollments/route.ts
-// FR4 (enroll in course), NFR1 (auth), NFR2 (student-only)
+// FR6 (enroll in course), NFR1 (auth), NFR2 (student-only)
 // Route handles request/response only — business logic lives in enrollmentService
 
 import { NextResponse } from "next/server";
 import { requireStudent, isAuthError } from "@/lib/api-auth";
 import * as enrollmentService from "@/lib/services/enrollmentService";
 
-// FR4 + NFR1 + NFR2 - student enrols in a published course
+// FR6 + NFR1 + NFR2 - student enrols in a published course
 // studentId always comes from the JWT, never from the body
 export async function POST(request: Request) {
   try {

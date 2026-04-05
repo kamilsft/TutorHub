@@ -149,5 +149,27 @@ describe("/api/submissions", () => {
       const data = await res.json();
       expect(data.resubmitted).toBe(true);
     });
+
+    it("returns 500 on unexpected POST error", async () => {
+      prismaMock.assignment.findUnique.mockRejectedValue(new Error("DB down") as never);
+      const token = signToken(STUDENT, "STUDENT");
+      const res = await POST(new Request("http://localhost/api/submissions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ assignmentId: 1, content: "answer" }),
+      }));
+      expect(res.status).toBe(500);
+    });
+  });
+
+  describe("GET /api/submissions — 500 error path", () => {
+    it("returns 500 on unexpected GET error", async () => {
+      prismaMock.submission.findMany.mockRejectedValue(new Error("DB down") as never);
+      const token = signToken(STUDENT, "STUDENT");
+      const res = await GET(new Request("http://localhost/api/submissions?assignmentId=1", {
+        headers: { Authorization: `Bearer ${token}` },
+      }));
+      expect(res.status).toBe(500);
+    });
   });
 });

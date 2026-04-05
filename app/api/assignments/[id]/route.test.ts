@@ -103,4 +103,11 @@ describe("GET /api/assignments/[id]", () => {
     const res = await GET(makeReq(), { params: { id: "1" } });
     expect(res.status).toBe(200);
   });
+
+  it("returns 500 on unexpected error", async () => {
+    vi.mocked(verifyToken).mockReturnValue(tutorPayload as any);
+    prismaMock.assignment.findUnique.mockRejectedValue(new Error("DB down") as never);
+    const res = await GET(makeReq(), { params: { id: "1" } });
+    expect(res.status).toBe(500);
+  });
 });

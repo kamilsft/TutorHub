@@ -105,4 +105,15 @@ describe("PATCH /api/submissions/[id]/review", () => {
     const body = await res.json();
     expect(body.success).toBe(true);
   });
+
+  it("returns 500 on unexpected error", async () => {
+    prismaMock.submission.findUnique.mockRejectedValue(new Error("DB down") as never);
+    const req = new Request("http://localhost/api/submissions/1/review", {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${signToken(TUTOR, "TUTOR")}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ grade: 80 }),
+    });
+    const res = await PATCH(req, { params: { id: "1" } });
+    expect(res.status).toBe(500);
+  });
 });

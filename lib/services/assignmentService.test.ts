@@ -1,5 +1,5 @@
 // lib/services/assignmentService.test.ts
-// Unit tests for assignmentService (FR6, FR7, NFR2, NFR4)
+// Unit tests for assignmentService (FR7, NFR2, NFR4)
 // Layer: Service (business logic) — repository layer is mocked; no real DB touched
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -63,7 +63,7 @@ describe("assignmentService", () => {
   });
 
   // ── createAssignment ──────────────────────────────────────────────────────
-  describe("createAssignment (FR6 + NFR2 + NFR4)", () => {
+  describe("createAssignment (FR7 + NFR2 + NFR4)", () => {
     // NFR4: title is a required field — must be caught before touching the DB
     it("throws 400 when title is missing (NFR4)", async () => {
       await expect(createAssignment("tutor-1", { courseId: 1 }))
@@ -84,8 +84,8 @@ describe("assignmentService", () => {
         .rejects.toMatchObject({ status: 403 });
     });
 
-    // FR6 happy path: owning tutor provides all required fields; assignment is persisted
-    it("creates assignment when tutor owns the course (FR6)", async () => {
+    // FR7 happy path: owning tutor provides all required fields; assignment is persisted
+    it("creates assignment when tutor owns the course (FR7)", async () => {
       vi.mocked(courseRepo.findCourseById).mockResolvedValue(mockCourse as any);
       vi.mocked(assignmentRepo.createAssignment).mockResolvedValue(mockAssignment as any);
       const result = await createAssignment("tutor-1", { courseId: 1, title: "HW1" });

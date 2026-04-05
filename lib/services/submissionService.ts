@@ -81,7 +81,7 @@ export async function submitWork(studentId: string, body: any) {
   return { submission, resubmitted: false };
 }
 
-// FR10 + NFR2 + NFR4 - tutor reviews a submission
+// FR9 + NFR2 + NFR4 - tutor reviews a submission
 export async function reviewSubmission(submissionId: number, tutorId: string, body: any) {
   // NFR4 - grade must be 0–100 if supplied
   const validationError = validateReviewInput(body);

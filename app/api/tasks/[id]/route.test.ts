@@ -73,4 +73,11 @@ describe("PATCH /api/tasks/[id]", () => {
     const data = await res.json();
     expect(data.completed).toBe(true);
   });
+
+  it("returns 500 on unexpected error", async () => {
+    vi.mocked(verifyToken).mockReturnValue(mockStudentPayload as any);
+    prismaMock.task.findUnique.mockRejectedValue(new Error("DB down") as never);
+    const res = await PATCH(makeRequest({ completed: true }, "token"), { params: { id: "1" } });
+    expect(res.status).toBe(500);
+  });
 });

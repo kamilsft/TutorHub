@@ -47,4 +47,13 @@ describe("GET /api/courses/enrolled", () => {
     const data = await res.json();
     expect(data[0].title).toBe("Math");
   });
+
+  it("returns 500 when service throws unexpectedly", async () => {
+    prismaMock.enrollment.findMany.mockRejectedValue(new Error("DB down") as never);
+    const req = new Request("http://localhost/api/courses/enrolled", {
+      headers: { authorization: `Bearer ${signToken(STUDENT, "STUDENT")}` },
+    });
+    const res = await GET(req);
+    expect(res.status).toBe(500);
+  });
 });

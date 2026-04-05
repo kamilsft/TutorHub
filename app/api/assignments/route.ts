@@ -25,7 +25,7 @@ export async function GET(request: Request) {
   }
 }
 
-// FR6 + NFR1 + NFR2 + NFR4 - tutor creates an assignment
+// FR7 + NFR1 + NFR2 + NFR4 - tutor creates an assignment
 export async function POST(request: Request) {
   try {
     // NFR2 - only tutors can create assignments

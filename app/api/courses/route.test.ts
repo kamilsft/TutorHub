@@ -166,5 +166,30 @@ describe("/api/courses", () => {
       const res = await DELETE(req);
       expect(res.status).toBe(200);
     });
+
+    it("returns 500 on unexpected DELETE error", async () => {
+      vi.mocked(verifyToken).mockReturnValue({ sub: "tutor-1", role: "TUTOR" } as any);
+      prismaMock.course.findUnique.mockRejectedValue(new Error("DB down") as never);
+      const res = await DELETE(makeRequest("DELETE", "http://localhost/api/courses?id=1", undefined, "tutor-token"));
+      expect(res.status).toBe(500);
+    });
+  });
+
+  describe("POST /api/courses — 500 error path", () => {
+    it("returns 500 on unexpected POST error", async () => {
+      vi.mocked(verifyToken).mockReturnValue({ sub: "tutor-1", role: "TUTOR" } as any);
+      prismaMock.course.create.mockRejectedValue(new Error("DB down") as never);
+      const res = await POST(makeRequest("POST", "http://localhost/api/courses", { title: "T", subject: "S" }, "tutor-token"));
+      expect(res.status).toBe(500);
+    });
+  });
+
+  describe("PATCH /api/courses — 500 error path", () => {
+    it("returns 500 on unexpected PATCH error", async () => {
+      vi.mocked(verifyToken).mockReturnValue({ sub: "tutor-1", role: "TUTOR" } as any);
+      prismaMock.course.findUnique.mockRejectedValue(new Error("DB down") as never);
+      const res = await PATCH(makeRequest("PATCH", "http://localhost/api/courses?id=1", { title: "T", subject: "S" }, "tutor-token"));
+      expect(res.status).toBe(500);
+    });
   });
 });

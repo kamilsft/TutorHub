@@ -4,19 +4,19 @@
 
 import { prisma } from "@/lib/prisma";
 
-// FR4 - check whether a student is already enrolled in a course
+// FR6 - check whether a student is already enrolled in a course
 export async function findEnrollment(studentId: string, courseId: number) {
   return prisma.enrollment.findUnique({
     where: { studentId_courseId: { studentId, courseId } as any },
   });
 }
 
-// FR4 - count active enrollments for a course (used to enforce capacity)
+// FR6 - count active enrollments for a course (used to enforce capacity)
 export async function countActiveEnrollments(courseId: number): Promise<number> {
   return prisma.enrollment.count({ where: { courseId, status: "ACTIVE" } });
 }
 
-// FR4 - create a new enrollment for a student
+// FR6 - create a new enrollment for a student
 export async function createEnrollment(studentId: string, courseId: number) {
   return prisma.enrollment.create({
     data: { studentId, courseId, status: "ACTIVE" },

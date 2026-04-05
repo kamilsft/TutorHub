@@ -49,8 +49,7 @@ __pycache__/
 # Misc
 *.log
 *.pid
+.claude/
 *.seed
 .cache/
 
-# Claude Code memory
-.claude/

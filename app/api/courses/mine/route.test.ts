@@ -39,4 +39,13 @@ describe("GET /api/courses/mine", () => {
     const data = await res.json();
     expect(data).toHaveLength(1);
   });
+
+  it("returns 500 when service throws unexpectedly", async () => {
+    prismaMock.course.findMany.mockRejectedValue(new Error("DB down") as never);
+    const req = new Request("http://localhost/api/courses/mine", {
+      headers: { authorization: `Bearer ${signToken(TUTOR, "TUTOR")}` },
+    });
+    const res = await GET(req);
+    expect(res.status).toBe(500);
+  });
 });

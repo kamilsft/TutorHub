@@ -57,7 +57,7 @@ export async function getAssignment(id: number, requesterId: string, requesterRo
   return assignment;
 }
 
-// FR6 + NFR2 + NFR4 - create an assignment for a course the tutor owns
+// FR7 + NFR2 + NFR4 - create an assignment for a course the tutor owns
 export async function createAssignment(tutorId: string, body: any) {
   // NFR4 - validate before touching the database
   const error = validateAssignmentInput(body);

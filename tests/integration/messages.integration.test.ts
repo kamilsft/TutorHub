@@ -120,6 +120,24 @@ describe("Messages integration (FR10 + FR11 + NFR1 + NFR4)", () => {
       }));
       expect(res.status).toBe(404);
     });
+
+    it("returns 401 when unauthenticated (NFR1)", async () => {
+      vi.mocked(verifyToken).mockReturnValue(null);
+      const res = await POST(new Request("http://localhost/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ receiverId: USER_B, content: "Hi" }),
+      }));
+      expect(res.status).toBe(401);
+    });
+
+    it("returns 400 when content exceeds 8000 characters (NFR4)", async () => {
+      vi.mocked(verifyToken).mockReturnValue(payloadA as any);
+      const res = await POST(req("POST", "http://localhost/api/messages", {
+        receiverId: USER_B, content: "a".repeat(8001),
+      }));
+      expect(res.status).toBe(400);
+    });
   });
 
   // ── User search (FR10) ─────────────────────────────────────────────────────

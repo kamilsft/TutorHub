@@ -1,5 +1,5 @@
 // lib/services/enrollmentService.test.ts
-// Unit tests for enrollmentService (FR4, NFR2, NFR4)
+// Unit tests for enrollmentService (FR6, NFR2, NFR6)
 // Layer: Service (business logic) — repository layer is mocked; no real DB touched
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -17,17 +17,17 @@ import * as enrollmentRepo from "@/lib/repositories/enrollmentRepository";
 import * as courseRepo from "@/lib/repositories/courseRepository";
 import { enrollStudent } from "./enrollmentService";
 
-describe("enrollmentService (FR4 + NFR2 + NFR4)", () => {
+describe("enrollmentService (FR6 + NFR2 + NFR6)", () => {
   beforeEach(() => vi.clearAllMocks());
 
   // NFR4: courseId is required to know which course to enroll in — missing it is rejected immediately
-  it("throws 400 when courseId is missing (NFR4)", async () => {
+  it("throws 400 when courseId is missing (NFR6)", async () => {
     await expect(enrollStudent("student-1", {}))
       .rejects.toMatchObject({ status: 400, message: "courseId is required" });
   });
 
   // Resource existence: a student cannot enroll in a course that doesn't exist
-  it("throws 404 when course does not exist (FR4)", async () => {
+  it("throws 404 when course does not exist (FR6)", async () => {
     vi.mocked(courseRepo.findCourseById).mockResolvedValue(null);
     await expect(enrollStudent("student-1", { courseId: 99 }))
       .rejects.toMatchObject({ status: 404 });
@@ -35,7 +35,7 @@ describe("enrollmentService (FR4 + NFR2 + NFR4)", () => {
 
   // FR4: unpublished (archived) courses must not accept new enrollments —
   // returns 404 so the existence of the draft course is not leaked
-  it("throws 404 when course is not published (FR4)", async () => {
+  it("throws 404 when course is not published (FR6)", async () => {
     vi.mocked(courseRepo.findCourseById).mockResolvedValue({ id: 1, isPublished: false } as any);
     await expect(enrollStudent("student-1", { courseId: 1 }))
       .rejects.toMatchObject({ status: 404 });
@@ -43,7 +43,7 @@ describe("enrollmentService (FR4 + NFR2 + NFR4)", () => {
 
   // FR4 idempotency: re-enrolling in a course the student already attends should be a no-op —
   // the existing enrollment is returned with alreadyEnrolled=true; no duplicate record is created
-  it("returns existing enrollment without error when already enrolled (FR4)", async () => {
+  it("returns existing enrollment without error when already enrolled (FR6)", async () => {
     vi.mocked(courseRepo.findCourseById).mockResolvedValue({ id: 1, isPublished: true, capacity: null } as any);
     vi.mocked(enrollmentRepo.findEnrollment).mockResolvedValue({ id: 5, status: "ACTIVE" } as any);
 
@@ -54,7 +54,7 @@ describe("enrollmentService (FR4 + NFR2 + NFR4)", () => {
 
   // FR4: a course that has reached its capacity must refuse additional enrollments —
   // current enrollment count equals the capacity limit
-  it("throws 400 when course is at capacity (FR4)", async () => {
+  it("throws 400 when course is at capacity (FR6)", async () => {
     vi.mocked(courseRepo.findCourseById).mockResolvedValue({ id: 1, isPublished: true, capacity: 2 } as any);
     vi.mocked(enrollmentRepo.findEnrollment).mockResolvedValue(null);
     vi.mocked(enrollmentRepo.countActiveEnrollments).mockResolvedValue(2); // at limit
@@ -77,7 +77,7 @@ describe("enrollmentService (FR4 + NFR2 + NFR4)", () => {
 
   // FR4 happy path: all conditions met (published course, under capacity, not yet enrolled) —
   // a new enrollment record is created
-  it("succeeds when course has capacity and student is not enrolled (FR4)", async () => {
+  it("succeeds when course has capacity and student is not enrolled (FR6)", async () => {
     vi.mocked(courseRepo.findCourseById).mockResolvedValue({ id: 1, isPublished: true, capacity: 10 } as any);
     vi.mocked(enrollmentRepo.findEnrollment).mockResolvedValue(null);
     vi.mocked(enrollmentRepo.countActiveEnrollments).mockResolvedValue(5); // under limit

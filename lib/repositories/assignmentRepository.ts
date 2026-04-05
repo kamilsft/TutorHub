@@ -11,7 +11,7 @@ export interface AssignmentCreateData {
   dueDate?: Date | null;
 }
 
-// FR6/FR7 - get all assignments for a course, newest first
+// FR7 - get all assignments for a course, newest first
 export async function findAssignmentsByCourse(courseId: number) {
   return prisma.assignment.findMany({
     where: { courseId },
@@ -48,7 +48,7 @@ export async function findAssignmentByIdForStudent(id: number, studentId: string
   });
 }
 
-// FR6 - create a new assignment
+// FR7 - create a new assignment
 export async function createAssignment(data: AssignmentCreateData) {
   return prisma.assignment.create({ data });
 }

@@ -113,5 +113,19 @@ describe("/api/assignments", () => {
       );
       expect(res.status).toBe(201);
     });
+
+  it("returns 500 on unexpected GET error", async () => {
+    vi.mocked(verifyToken).mockReturnValue(tutorPayload as any);
+    prismaMock.assignment.findMany.mockRejectedValue(new Error("DB down") as never);
+    const res = await GET(makeReq("GET", "http://localhost/api/assignments?courseId=1"));
+    expect(res.status).toBe(500);
+  });
+
+  it("returns 500 on unexpected POST error", async () => {
+    vi.mocked(verifyToken).mockReturnValue(tutorPayload as any);
+    prismaMock.course.findUnique.mockRejectedValue(new Error("DB down") as never);
+    const res = await POST(makeReq("POST", "http://localhost/api/assignments", { courseId: 1, title: "T" }));
+    expect(res.status).toBe(500);
+  });
   });
 });

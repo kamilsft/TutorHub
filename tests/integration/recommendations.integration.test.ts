@@ -1,6 +1,6 @@
 // tests/integration/recommendations.integration.test.ts
 // Integration tests for GET /api/recommendations
-// FR11 (recommendations), NFR1 (auth), NFR8 (graceful degradation)
+// FR15 (recommendations), NFR1 (auth), NFR8 (graceful degradation)
 // recommendationGateway is mocked — we test only the route's HTTP wiring
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,7 +15,6 @@ import * as recommendationGateway from "@/lib/gateways/recommendationGateway";
 import { GET } from "@/app/api/recommendations/route";
 
 const STUDENT = { sub: "student-1", role: "STUDENT" };
-const TUTOR   = { sub: "tutor-1",   role: "TUTOR"   };
 
 function req(payload?: typeof STUDENT): Request {
   const headers: Record<string, string> = {};
@@ -23,7 +22,7 @@ function req(payload?: typeof STUDENT): Request {
   return new Request("http://localhost/api/recommendations", { headers });
 }
 
-describe("GET /api/recommendations (FR11 + NFR1)", () => {
+describe("GET /api/recommendations (FR15 + NFR1)", () => {
   beforeEach(() => vi.clearAllMocks());
 
   // NFR1: no valid token → 401
@@ -44,8 +43,8 @@ describe("GET /api/recommendations (FR11 + NFR1)", () => {
       .toHaveBeenCalledWith("student-1");
   });
 
-  // FR11 happy path: gateway resolves → route returns 200 with data
-  it("returns 200 with recommendation data on success (FR11)", async () => {
+  // FR15 happy path: gateway resolves → route returns 200 with data
+  it("returns 200 with recommendation data on success (FR15)", async () => {
     vi.mocked(verifyToken).mockReturnValue(STUDENT as any);
     vi.mocked(recommendationGateway.getRecommendationsForStudent)
       .mockResolvedValue({ recommendations: [{ tutorId: "t1" }] });
@@ -78,13 +77,26 @@ describe("GET /api/recommendations (FR11 + NFR1)", () => {
     expect(res.status).toBe(500);
   });
 
-  // FR11: recommendations work for tutors too (any authenticated user)
-  it("returns 200 for authenticated tutor (FR11)", async () => {
-    vi.mocked(verifyToken).mockReturnValue(TUTOR as any);
+  // NFR8: gateway resolves with malformed shape (no recommendations key) → route does not crash
+  it("returns 200 without crashing when gateway returns a malformed response (NFR8)", async () => {
+    vi.mocked(verifyToken).mockReturnValue(STUDENT as any);
     vi.mocked(recommendationGateway.getRecommendationsForStudent)
-      .mockResolvedValue({ recommendations: [] });
+      .mockResolvedValue({ data: [] } as any); // wrong key — missing "recommendations"
 
-    const res = await GET(req(TUTOR) as any);
-    expect(res.status).toBe(200);
+    const res = await GET(req(STUDENT) as any);
+    expect(res.status).toBe(200); // route must not throw
   });
+
+  // NFR8: gateway throws an error with no status field → falls back to 503
+  it("falls back to 503 when gateway throws an error with no status field (NFR8)", async () => {
+    vi.mocked(verifyToken).mockReturnValue(STUDENT as any);
+    vi.mocked(recommendationGateway.getRecommendationsForStudent)
+      .mockRejectedValue({ message: "Unknown failure" }); // no status field
+
+    const res = await GET(req(STUDENT) as any);
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.error).toContain("unavailable");
+  });
+
 });

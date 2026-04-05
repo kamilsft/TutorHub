@@ -1,12 +1,12 @@
 // app/api/submissions/[id]/review/route.ts
-// FR10 (review/grade), NFR1, NFR2, NFR4
+// FR9 (review/grade), NFR1, NFR2, NFR4
 // Route handles request/response only — business logic lives in submissionService
 
 import { NextResponse } from "next/server";
 import { requireTutor, isAuthError } from "@/lib/api-auth";
 import * as submissionService from "@/lib/services/submissionService";
 
-// FR10 + NFR1 + NFR2 + NFR4 - tutor grades a submission they own
+// FR9 + NFR1 + NFR2 + NFR4 - tutor grades a submission they own
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
     // NFR2 - only tutors can review

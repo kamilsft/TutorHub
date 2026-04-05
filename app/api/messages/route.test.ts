@@ -109,5 +109,27 @@ describe("/api/messages", () => {
       const body = await res.json();
       expect(body.message.content).toBe("Hello");
     });
+
+    it("returns 500 on unexpected POST error", async () => {
+      prismaMock.user.findUnique.mockRejectedValue(new Error("DB down") as never);
+      const token = signToken("user-a", "STUDENT");
+      const res = await POST(new Request("http://localhost/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ receiverId: "user-b", content: "Hi" }),
+      }));
+      expect(res.status).toBe(500);
+    });
+  });
+
+  describe("GET /api/messages — 500 error path", () => {
+    it("returns 500 on unexpected GET error", async () => {
+      const token = signToken("user-a", "STUDENT");
+      prismaMock.message.findMany.mockRejectedValue(new Error("DB down") as never);
+      const res = await GET(new Request("http://localhost/api/messages", {
+        headers: { Authorization: `Bearer ${token}` },
+      }));
+      expect(res.status).toBe(500);
+    });
   });
 });

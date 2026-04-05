@@ -134,6 +134,44 @@ describe("StudyPlanForm", () => {
     });
   });
 
+  // Error path: API returns non-ok response — alerts the error message from server
+  it("alerts server error message when API returns failure (error path)", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({ ok: true, json: async () => [{ id: 1, title: "Maths" }] } as any)
+      .mockResolvedValueOnce({ ok: false, json: async () => ({ error: "Server error" }) } as any);
+
+    render(<StudyPlanForm />);
+    await waitFor(() => screen.getByRole("option", { name: "Maths" }));
+
+    fireEvent.change(screen.getByPlaceholderText("Task title"), { target: { value: "Study" } });
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "1" } });
+    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    fireEvent.change(dateInput, { target: { value: "2026-06-01" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /save plan/i }));
+
+    await waitFor(() => expect(alert).toHaveBeenCalledWith("Server error"));
+  });
+
+  // Error path: fetch throws a network error — alerts generic message
+  it("alerts generic error when fetch throws a network error (error path)", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({ ok: true, json: async () => [{ id: 1, title: "Maths" }] } as any)
+      .mockRejectedValueOnce(new Error("Network error"));
+
+    render(<StudyPlanForm />);
+    await waitFor(() => screen.getByRole("option", { name: "Maths" }));
+
+    fireEvent.change(screen.getByPlaceholderText("Task title"), { target: { value: "Study" } });
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "1" } });
+    const dateInput2 = document.querySelector('input[type="date"]') as HTMLInputElement;
+    fireEvent.change(dateInput2, { target: { value: "2026-06-01" } });
+
+    fireEvent.click(screen.getByRole("button", { name: /save plan/i }));
+
+    await waitFor(() => expect(alert).toHaveBeenCalledWith("Error saving study plan"));
+  });
+
   // UX: Save Plan button shows "Saving…" while the request is in flight
   it('shows "Saving…" while the plan is being saved', async () => {
     vi.mocked(fetch)

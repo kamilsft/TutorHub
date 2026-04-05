@@ -26,3 +26,14 @@ jobs:
 
       - name: Unit tests
         run: npm test
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: pip install fastapi httpx pytest pytest-asyncio sqlalchemy psycopg2-binary uvicorn python-dotenv
+
+      - name: Python recommendation-service tests
+        run: cd recommendation-service && python -m pytest test_main.py -v

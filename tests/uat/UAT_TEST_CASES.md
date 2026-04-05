@@ -2,8 +2,14 @@
 
 **Project:** TutorHub tutoring platform  
 **Document type:** UAT test plan for manual / stakeholder sign-off  
-**Test environment:** Running TutorHub instance with a seeded PostgreSQL database  
-**How to use:** Follow each step in a browser or via a REST client (e.g. Postman). Check the expected result column. Mark Pass or Fail in the sign-off table at the end.
+**Version:** 1.1  
+**Test environment:** Running TutorHub instance with a seeded PostgreSQL database (run `npm run seed:test-data` before testing)  
+**How to use:** Follow each step in a browser or via a REST client (e.g. Postman). After each test, record the result inline using the **Result** field and mark the sign-off table at the end.
+
+**Result key:**
+- ✅ Pass — all steps produced the expected outcome
+- ❌ Fail — one or more steps did not match the expected outcome
+- ⚠️ Blocked — test could not be executed (environment issue, dependency not met)
 
 ---
 
@@ -21,6 +27,8 @@
 
 **Pass:** Registration succeeds and the user can log in.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-02 — Tutor registers successfully (FR1)
@@ -34,6 +42,8 @@
 
 **Pass:** Tutor account created; `role = TUTOR` in the database.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-03 — Duplicate email is rejected (FR1 + NFR4)
@@ -45,6 +55,8 @@
 | 2 | Check HTTP response | Status 409 |
 
 **Pass:** Duplicate email rejected; no second account created.
+
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
 
 ---
 
@@ -60,6 +72,8 @@
 
 **Pass:** Each invalid input produces a specific, readable error; no account created.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-05 — Student logs in and receives a session token (FR2 + NFR1)
@@ -73,6 +87,8 @@
 
 **Pass:** Login succeeds; `authToken` cookie set; dashboard is accessible.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-06 — Wrong password is rejected (FR2 + NFR1)
@@ -85,6 +101,8 @@
 | 3 | Check HTTP status | 401 |
 
 **Pass:** Login fails cleanly; no token issued.
+
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
 
 ---
 
@@ -101,6 +119,8 @@
 
 **Pass:** Course list loads; no unpublished courses appear; no login required.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-08 — Student enrols in a published course (FR6)
@@ -116,6 +136,8 @@
 
 **Pass:** Enrollment created using JWT identity; course appears in student's list.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-09 — Course at capacity rejects new enrollments (FR6)
@@ -129,6 +151,8 @@
 
 **Pass:** Second enrollment blocked; first enrollment unaffected.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-10 — Tutor cannot enrol in a course (NFR2)
@@ -140,6 +164,8 @@
 | 2 | POST to `/api/enrollments` with a valid `courseId` | Status 403 |
 
 **Pass:** Tutor enrollment refused.
+
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
 
 ---
 
@@ -159,6 +185,8 @@
 
 **Pass:** Course created; `tutorId` comes from the JWT, not the form body.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-12 — Student cannot create a course (NFR2)
@@ -170,6 +198,8 @@
 | 2 | POST to `/api/courses` with a valid body | Status 403 |
 
 **Pass:** Request refused; no course created.
+
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
 
 ---
 
@@ -184,6 +214,8 @@
 
 **Pass:** Update succeeds for the owner; blocked for everyone else.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-14 — Course archive (safe removal) instead of hard delete (FR5 + NFR2)
@@ -197,6 +229,8 @@
 | 4 | Try DELETE as a **different** tutor | Status 403 |
 
 **Pass:** Course is unpublished; no records deleted; cross-tutor attempt refused.
+
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
 
 ---
 
@@ -214,6 +248,8 @@
 
 **Pass:** Assignment created for the owner; blocked for everyone else.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-16 — Enrolled student can view assignments; unenrolled student cannot (FR7 + NFR2)
@@ -227,6 +263,8 @@
 
 **Pass:** Enrolled student sees the list; unenrolled student is refused.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-17 — Student only sees their own submissions in assignment detail (NFR2)
@@ -239,6 +277,8 @@
 | 3 | Log in as the tutor and GET the same URL | Both submissions are in the response |
 
 **Pass:** Data isolation confirmed; students only see their own work.
+
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
 
 ---
 
@@ -255,6 +295,8 @@
 
 **Pass:** Submission created using authenticated identity.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-19 — Student can resubmit and the old grade is cleared (FR8)
@@ -268,6 +310,8 @@
 
 **Pass:** Resubmission updates content and clears old grade.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-20 — Unenrolled student cannot submit (NFR2)
@@ -279,6 +323,8 @@
 | 2 | POST to `/api/submissions` for that assignment | Status 403 |
 
 **Pass:** Submission refused with "You must be enrolled in the course to submit."
+
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
 
 ---
 
@@ -294,6 +340,8 @@
 
 **Pass:** Grade saved for the course owner; blocked for others.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-22 — Grade out of range is rejected (NFR4)
@@ -305,6 +353,8 @@
 | 2 | PATCH review with `{ grade: -1 }` | Status 400 |
 
 **Pass:** Invalid grades rejected before the database is touched.
+
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
 
 ---
 
@@ -323,6 +373,8 @@
 
 **Pass:** Plan created using JWT identity.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-24 — Body studentId is ignored when creating a plan (NFR2)
@@ -334,6 +386,8 @@
 | 2 | Check database | Plan's `studentId = "student-1"` (the JWT ID, not `"fake-id"`) |
 
 **Pass:** Body `studentId` is silently ignored.
+
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
 
 ---
 
@@ -348,6 +402,8 @@
 
 **Pass:** Query-string `studentId` ignored; tutor refused.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-26 — Student can update only their own plan (FR13 + NFR2)
@@ -360,6 +416,8 @@
 | 3 | PUT with `{ planId: Student B's plan, tasks: [...] }` | Status 403 |
 
 **Pass:** Update succeeds for owner; blocked for others.
+
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
 
 ---
 
@@ -374,6 +432,8 @@
 | 4 | PUT the same plan | Status 403 |
 
 **Pass:** Shared-course tutor can edit; unrelated tutor cannot.
+
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
 
 ---
 
@@ -390,6 +450,8 @@
 
 **Pass:** Toggle works for the owner; refused for others; only boolean values accepted.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-29 — Non-boolean task toggle value is rejected (NFR4)
@@ -401,6 +463,8 @@
 | 2 | PATCH with `{ completed: 1 }` | Status 400 |
 
 **Pass:** String and number values are rejected before the database is touched.
+
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
 
 ---
 
@@ -418,6 +482,8 @@
 
 **Pass:** Message stored; both users can see it; read status updated on open.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-31 — Cannot message yourself (NFR4)
@@ -430,6 +496,8 @@
 
 **Pass:** Both endpoints refuse self-messages.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-32 — Unauthenticated access to messages is blocked (NFR1)
@@ -441,6 +509,8 @@
 | 2 | POST `/api/messages` with no token | Status 401 |
 
 **Pass:** Both endpoints return 401 without a token.
+
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
 
 ---
 
@@ -458,6 +528,8 @@
 
 **Pass:** Recommendations shown for authenticated students; 401 for unauthenticated requests.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-34 — Graceful handling when recommendation service is offline (FR15 / NFR8)
@@ -471,6 +543,8 @@
 
 **Pass:** 503 returned; app remains usable.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ## Section 9 — Security and Cross-cutting Checks
@@ -483,6 +557,8 @@
 | 1 | Call each endpoint below with no Authorization header and no cookie: `POST /api/courses`, `GET /api/study-plans`, `POST /api/study-plans`, `PATCH /api/tasks/1`, `POST /api/submissions`, `PATCH /api/submissions/1/review`, `GET /api/assignments?courseId=1`, `GET /api/messages`, `POST /api/messages` | All return 401 |
 
 **Pass:** Every protected endpoint returns 401 without a valid token.
+
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
 
 ---
 
@@ -499,6 +575,8 @@
 
 **Pass:** All five role violations return 403.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-37 — Identity cannot be injected via request body (NFR2)
@@ -511,6 +589,8 @@
 | 3 | POST `/api/enrollments` with body `{ studentId: "attacker-id", courseId: 1 }` while logged in as `student-1` | Enrollment created with `studentId = "student-1"` in DB |
 
 **Pass:** Body identity fields ignored in all three cases.
+
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
 
 ---
 
@@ -528,6 +608,8 @@
 
 **Pass:** Each invalid input returns HTTP 400 with the exact message listed above.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ## Section 10 — Additional Acceptance Scenarios
@@ -544,6 +626,8 @@
 
 **Pass:** Each role lands on the correct dashboard; cross-role access is blocked.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-40 — Logout clears the session cookie and blocks further access (FR16)
@@ -558,6 +642,8 @@
 
 **Pass:** Cookie cleared on logout; old token rejected; protected routes inaccessible.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-41 — Admin workspace access (FR17)
@@ -571,6 +657,8 @@
 | 4 | POST `/api/courses` as admin | Status 403 (course creation is tutor-only) |
 
 **Pass:** Admin token accepted by role-neutral endpoints; blocked by role-restricted ones.
+
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
 
 ---
 
@@ -587,6 +675,8 @@
 
 **Pass:** Archived course disappears from public browse; enrolment is refused; data is preserved.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ### UAT-43 — Grade boundary values 0 and 100 are accepted (NFR4)
@@ -601,19 +691,62 @@
 
 **Pass:** Grades 0 and 100 are accepted; -1 and 101 are rejected before touching the database.
 
+**Result:** ☐ Pass  ☐ Fail  ☐ Blocked  &nbsp;&nbsp; **Tester:** _______________  **Date:** ___________
+
 ---
 
 ## Sign-off Table
 
-| Section | Test cases | Tester | Date | Pass / Fail |
-|---------|-----------|--------|------|-------------|
-| 1 — Registration and Login | UAT-01 to UAT-06 | | | |
-| 2 — Course Browsing and Enrollment | UAT-07 to UAT-10 | | | |
-| 3 — Tutor Course Management | UAT-11 to UAT-14 | | | |
-| 4 — Assignments | UAT-15 to UAT-17 | | | |
-| 5 — Submissions and Grading | UAT-18 to UAT-22 | | | |
-| 6 — Study Plans and Tasks | UAT-23 to UAT-29 | | | |
-| 7 — Messaging | UAT-30 to UAT-32 | | | |
-| 8 — Recommendations | UAT-33 to UAT-34 | | | |
-| 9 — Security and Cross-cutting | UAT-35 to UAT-38 | | | |
-| 10 — Additional Scenarios | UAT-39 to UAT-43 | | | |
+| ID | Workflow | FR / NFR | Result | Tester | Date | Notes |
+|----|---------|----------|--------|--------|------|-------|
+| UAT-01 | Student registers successfully | FR1 | | | | |
+| UAT-02 | Tutor registers successfully | FR1 | | | | |
+| UAT-03 | Duplicate email rejected | FR1, NFR4 | | | | |
+| UAT-04 | Invalid registration inputs rejected | NFR4 | | | | |
+| UAT-05 | Student logs in and receives session token | FR2, NFR1 | | | | |
+| UAT-06 | Wrong password rejected | FR2, NFR1 | | | | |
+| UAT-07 | Any visitor can browse published courses | FR4 | | | | |
+| UAT-08 | Student enrols in a published course | FR6 | | | | |
+| UAT-09 | Course at capacity rejects new enrollments | FR6 | | | | |
+| UAT-10 | Tutor cannot enrol in a course | NFR2 | | | | |
+| UAT-11 | Tutor creates and manages a course | FR5 | | | | |
+| UAT-12 | Student cannot create a course | NFR2 | | | | |
+| UAT-13 | Tutor updates only their own course | FR5, NFR2 | | | | |
+| UAT-14 | Course archive instead of hard delete | FR5, NFR2 | | | | |
+| UAT-15 | Tutor creates an assignment | FR7 | | | | |
+| UAT-16 | Enrolled student can view assignments | FR7, NFR2 | | | | |
+| UAT-17 | Student only sees their own submissions | NFR2 | | | | |
+| UAT-18 | Student submits an assignment | FR8 | | | | |
+| UAT-19 | Student can resubmit and old grade is cleared | FR8 | | | | |
+| UAT-20 | Unenrolled student cannot submit | NFR2 | | | | |
+| UAT-21 | Tutor grades a submission | FR9, NFR2 | | | | |
+| UAT-22 | Grade out of range rejected | NFR4 | | | | |
+| UAT-23 | Student creates a study plan | FR12 | | | | |
+| UAT-24 | Body studentId is ignored | NFR2 | | | | |
+| UAT-25 | Students only see their own plans | FR13, NFR2 | | | | |
+| UAT-26 | Student can update only their own plan | FR13, NFR2 | | | | |
+| UAT-27 | Tutor can edit plan only with shared course | FR13, NFR2 | | | | |
+| UAT-28 | Student can toggle task complete/incomplete | FR14, NFR2 | | | | |
+| UAT-29 | Non-boolean task toggle value rejected | NFR4 | | | | |
+| UAT-30 | User opens and uses direct message conversation | FR10, FR11, NFR1 | | | | |
+| UAT-31 | Cannot message yourself | NFR4 | | | | |
+| UAT-32 | Unauthenticated access to messages blocked | NFR1 | | | | |
+| UAT-33 | Student receives tutor recommendations | FR15, NFR1 | | | | |
+| UAT-34 | Graceful handling when recommendation service offline | FR15, NFR8 | | | | |
+| UAT-35 | All protected routes require authentication | NFR1 | | | | |
+| UAT-36 | Role enforcement across all routes | NFR2 | | | | |
+| UAT-37 | Identity cannot be injected via request body | NFR2 | | | | |
+| UAT-38 | Input validation is consistent | NFR4 | | | | |
+| UAT-39 | Role-based dashboard routing after login | FR3 | | | | |
+| UAT-40 | Logout clears session and blocks further access | FR16 | | | | |
+| UAT-41 | Admin workspace access | FR17 | | | | |
+| UAT-42 | Archived course not visible in public browse | FR5 | | | | |
+| UAT-43 | Grade boundary values 0 and 100 accepted | NFR4 | | | | |
+
+---
+
+**Overall sign-off**
+
+| Approved by | Role | Date | Signature |
+|-------------|------|------|-----------|
+| | | | |

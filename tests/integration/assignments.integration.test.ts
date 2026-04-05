@@ -80,7 +80,7 @@ describe("Assignments integration (FR7 + NFR1 + NFR2)", () => {
     });
   });
 
-  // ── POST assignment (FR6) ─────────────────────────────────────────────────
+  // ── POST assignment (FR7) ─────────────────────────────────────────────────
   describe("POST /api/assignments", () => {
     it("tutor creates assignment for their own course (FR7 + NFR2)", async () => {
       vi.mocked(verifyToken).mockReturnValue(tutor as any);

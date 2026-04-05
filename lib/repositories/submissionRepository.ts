@@ -43,7 +43,7 @@ export async function updateSubmission(id: number, content: string) {
   });
 }
 
-// FR10 - load a submission joined to its assignment → course so we can check tutorId
+// FR9 - load a submission joined to its assignment → course so we can check tutorId
 export async function findSubmissionWithCourse(id: number) {
   return prisma.submission.findUnique({
     where: { id },
@@ -55,7 +55,7 @@ export async function findSubmissionWithCourse(id: number) {
   });
 }
 
-// FR10 - save the tutor's grade and feedback
+// FR9 - save the tutor's grade and feedback
 export async function reviewSubmission(
   id: number,
   grade: number | null,

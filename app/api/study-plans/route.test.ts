@@ -176,5 +176,16 @@ describe("/api/study-plans", () => {
       const res = await PUT(req);
       expect(res.status).toBe(200);
     });
+
+    it("returns 500 on unexpected PUT error", async () => {
+      vi.mocked(verifyToken).mockReturnValue({ sub: "student-1", role: "STUDENT" } as any);
+      prismaMock.studyPlan.findUnique.mockRejectedValue(new Error("DB down") as never);
+      const res = await PUT(new Request("http://localhost/api/study-plans", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer token" },
+        body: JSON.stringify({ planId: 1, tasks: [] }),
+      }));
+      expect(res.status).toBe(500);
+    });
   });
 });
